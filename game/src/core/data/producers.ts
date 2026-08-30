@@ -2,35 +2,44 @@ import { ProducerInfo } from "../types.js";
 
 // 무대 카드(P카드)를 가진 6명의 보카로P.
 // 실존 인물/저작물명을 참고용으로 사용한 팬 기획 프로토타입입니다.
+//
+// accent 색상은 실제 앨범 아트/일러스트를 그대로 추출한 것이 아니라, 각 P의
+// 대표곡·브랜드 이미지에서 받은 "무드"를 참고해 새로 고른 값이다 (저작권
+// 있는 이미지를 직접 사용하지 않기 위함 — game/README.md 참고).
 export const PRODUCERS: ProducerInfo[] = [
-  { id: "deco27", nameKo: "DECO*27", nameOriginal: "DECO*27" },
-  { id: "hachi", nameKo: "하치", nameOriginal: "ハチ" },
-  { id: "wowaka", nameKo: "wowaka", nameOriginal: "wowaka" },
-  { id: "iyowa", nameKo: "이요와", nameOriginal: "いよわ" },
-  { id: "tak", nameKo: "Tak", nameOriginal: "TAK" },
-  { id: "mang50", nameKo: "50mang", nameOriginal: "50mang(쏘망)" },
+  { id: "deco27", nameKo: "DECO*27", nameOriginal: "DECO*27", accent: "#d1445a" },
+  { id: "hachi", nameKo: "하치", nameOriginal: "ハチ", accent: "#6f8fae" },
+  { id: "wowaka", nameKo: "wowaka", nameOriginal: "wowaka", accent: "#8890a0" },
+  { id: "iyowa", nameKo: "이요와", nameOriginal: "いよわ", accent: "#c9714a" },
+  { id: "tak", nameKo: "Tak", nameOriginal: "TAK", accent: "#5cb3d9" },
+  { id: "mang50", nameKo: "50mang", nameOriginal: "50mang(쏘망)", accent: "#8a6fae" },
 ];
 
 // 무대 카드는 없지만("게스트") 신화입성곡/유튜브 1억뷰곡을 곡 카드로 등록하기 위해
 // 추가한 프로듀서들. P카드에 없는 보카로P의 곡도 넣어도 된다는 방침에 따라 포함.
 export const GUEST_PRODUCERS: ProducerInfo[] = [
-  { id: "ika", nameKo: "ika", nameOriginal: "ika" },
-  { id: "ryo", nameKo: "ryo(supercell)", nameOriginal: "ryo(supercell)" },
-  { id: "kurousa", nameKo: "쿠로우사P", nameOriginal: "黒うさP" },
-  { id: "cosmo", nameKo: "cosMo@폭주P", nameOriginal: "cosMo@暴走P" },
-  { id: "kemu", nameKo: "케무", nameOriginal: "kemu" },
-  { id: "p40m", nameKo: "40mP", nameOriginal: "40mP" },
-  { id: "rerulili", nameKo: "레루리리", nameOriginal: "Rerulili" },
-  { id: "p164", nameKo: "164", nameOriginal: "164" },
-  { id: "irohasasaki", nameKo: "이로하(사사키)", nameOriginal: "イロハ(sasaki)" },
-  { id: "doriko", nameKo: "도리코", nameOriginal: "doriko" },
-  { id: "mikitop", nameKo: "미키토P", nameOriginal: "mikitoP" },
-  { id: "kairikibear", nameKo: "카이리키베어", nameOriginal: "カイリキベア" },
-  { id: "neru", nameKo: "네루", nameOriginal: "Neru" },
-  { id: "satsuki", nameKo: "사츠키", nameOriginal: "サツキ" },
-  { id: "yukopi", nameKo: "유코피", nameOriginal: "ゆこぴ" },
-  { id: "kikuo", nameKo: "키쿠오", nameOriginal: "きくお" },
+  { id: "ika", nameKo: "ika", nameOriginal: "ika", accent: "#7fae8f" },
+  // ryo(supercell): 멜트 참고 이미지의 파스텔 로즈 톤
+  { id: "ryo", nameKo: "ryo(supercell)", nameOriginal: "ryo(supercell)", accent: "#b8748f" },
+  { id: "kurousa", nameKo: "쿠로우사P", nameOriginal: "黒うさP", accent: "#c94f4f" },
+  { id: "cosmo", nameKo: "cosMo@폭주P", nameOriginal: "cosMo@暴走P", accent: "#5a8fae" },
+  { id: "kemu", nameKo: "케무", nameOriginal: "kemu", accent: "#9a6fc9" },
+  // 40mP: 아논운 마더구스 참고 이미지의 그레이스케일 크랙 하트
+  { id: "p40m", nameKo: "40mP", nameOriginal: "40mP", accent: "#9199a6" },
+  { id: "rerulili", nameKo: "레루리리", nameOriginal: "Rerulili", accent: "#c9534a" },
+  { id: "p164", nameKo: "164", nameOriginal: "164", accent: "#6fae8a" },
+  { id: "irohasasaki", nameKo: "이로하(사사키)", nameOriginal: "イロハ(sasaki)", accent: "#a65c5c" },
+  { id: "doriko", nameKo: "도리코", nameOriginal: "doriko", accent: "#c98a4a" },
+  { id: "mikitop", nameKo: "미키토P", nameOriginal: "mikitoP", accent: "#4a9ac9" },
+  { id: "kairikibear", nameKo: "카이리키베어", nameOriginal: "カイリキベア", accent: "#5c7a4a" },
+  { id: "neru", nameKo: "네루", nameOriginal: "Neru", accent: "#5c6470" },
+  { id: "satsuki", nameKo: "사츠키", nameOriginal: "サツキ", accent: "#c94a8a" },
+  { id: "yukopi", nameKo: "유코피", nameOriginal: "ゆこぴ", accent: "#c9c14a" },
+  { id: "kikuo", nameKo: "키쿠오", nameOriginal: "きくお", accent: "#7a5ca6" },
 ];
+
+// wowaka: 롤링걸 참고 이미지의 그레이·모노톤 서클 패턴 무드로 통일
+// iyowa: 열이상 참고 이미지의 붉은 에너지 톤으로 통일 (위 배열에서 이미 반영)
 
 export const ALL_PRODUCERS: ProducerInfo[] = [...PRODUCERS, ...GUEST_PRODUCERS];
 

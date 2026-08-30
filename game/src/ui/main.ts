@@ -1,76 +1,97 @@
-import { GameAction, GameMode, GameState } from "../core/types.js";
+import { GameAction, GameState } from "../core/types.js";
 import { reduce } from "../core/engine.js";
-import { renderGame, renderHandoff, renderSetup, SetupOptions } from "./render.js";
+import { chooseAiAction, isAiTurnNow } from "./ai.js";
+import {
+  AppHandlers,
+  Screen,
+  renderBattlePlaceholder,
+  renderBattleScreen,
+  renderCardsScreen,
+  renderDeckScreen,
+} from "./render.js";
+
+const AI_INDEX = 1 as const;
+const AI_THINK_DELAY_MS = 550;
 
 let game: GameState | null = null;
-let ackedKey: string | null = null;
+let screen: Screen = "deck";
+let aiTimer: number | null = null;
 
 const root = document.getElementById("app");
 if (!root) throw new Error("#app 요소를 찾을 수 없습니다.");
 
-function otherOf(i: 0 | 1): 0 | 1 {
-  return i === 0 ? 1 : 0;
+function clearAiTimer(): void {
+  if (aiTimer !== null) {
+    window.clearTimeout(aiTimer);
+    aiTimer = null;
+  }
 }
 
-/** 지금 화면을 봐야 하는(패를 볼 권한이 있는) 플레이어 */
-function viewerIndex(state: GameState): 0 | 1 {
-  return state.phase === "reaction" ? otherOf(state.activePlayerIndex) : state.activePlayerIndex;
-}
-
-function currentKey(state: GameState): string {
-  return `${viewerIndex(state)}:${state.turnNumber}:${state.phase}`;
+function scheduleAiIfNeeded(): void {
+  if (aiTimer !== null || !game) return;
+  if (!isAiTurnNow(game, AI_INDEX)) return;
+  aiTimer = window.setTimeout(() => {
+    aiTimer = null;
+    if (!game) return;
+    const action = chooseAiAction(game, AI_INDEX);
+    if (action) dispatch(action);
+  }, AI_THINK_DELAY_MS);
 }
 
 function dispatch(action: GameAction): void {
   game = reduce(game, action);
   render();
+  scheduleAiIfNeeded();
 }
 
 function render(): void {
   root!.innerHTML = "";
 
+  const handlers: AppHandlers = {
+    onNav: (s) => {
+      screen = s;
+      render();
+    },
+    onStartGame: (opts) => {
+      clearAiTimer();
+      game = reduce(null, {
+        type: "START_GAME",
+        mode: opts.mode,
+        player0Name: opts.name || "Player 1",
+        player1Name: "AI",
+        player0DeckRatio: opts.ratio,
+        // player1DeckRatio를 생략하면 카드 풀의 기본 분포를 사용한다.
+      });
+      screen = "battle";
+      render();
+      scheduleAiIfNeeded();
+    },
+    onPlayCard: (instanceId) => dispatch({ type: "PLAY_CARD", playerIndex: 0, instanceId }),
+    onEndTurn: () => dispatch({ type: "END_TURN", playerIndex: 0 }),
+    onPassReaction: () => dispatch({ type: "PASS_REACTION", playerIndex: 0 }),
+    onDismissReveal: () => dispatch({ type: "DISMISS_REVEAL" }),
+    onRestart: () => {
+      clearAiTimer();
+      game = null;
+      screen = "deck";
+      render();
+    },
+  };
+
+  if (screen === "deck") {
+    root!.appendChild(renderDeckScreen(handlers));
+    return;
+  }
+  if (screen === "cards") {
+    root!.appendChild(renderCardsScreen(handlers.onNav));
+    return;
+  }
+  // screen === "battle"
   if (!game) {
-    root!.appendChild(renderSetup(handleStart));
+    root!.appendChild(renderBattlePlaceholder(handlers));
     return;
   }
-
-  const key = currentKey(game);
-  if (game.phase !== "gameover" && key !== ackedKey) {
-    root!.appendChild(
-      renderHandoff(game, viewerIndex(game), () => {
-        ackedKey = key;
-        render();
-      }),
-    );
-    return;
-  }
-
-  root!.appendChild(
-    renderGame(game, {
-      onPlayCard: (playerIndex, instanceId) =>
-        dispatch({ type: "PLAY_CARD", playerIndex, instanceId }),
-      onEndTurn: (playerIndex) => dispatch({ type: "END_TURN", playerIndex }),
-      onPassReaction: (playerIndex) => dispatch({ type: "PASS_REACTION", playerIndex }),
-      onDismissReveal: () => dispatch({ type: "DISMISS_REVEAL" }),
-      onRestart: () => {
-        game = null;
-        ackedKey = null;
-        render();
-      },
-    }),
-  );
-}
-
-function handleStart(opts: SetupOptions): void {
-  ackedKey = null;
-  const mode: GameMode = opts.mode;
-  dispatch({
-    type: "START_GAME",
-    stageCardIds: [opts.stageCardId],
-    mode,
-    player0Name: opts.p0 || "Player 1",
-    player1Name: opts.p1 || "Player 2",
-  });
+  root!.appendChild(renderBattleScreen(game, handlers));
 }
 
 render();

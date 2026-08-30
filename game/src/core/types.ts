@@ -5,6 +5,13 @@
 // 직렬화 가능한(JSON-safe) 구조로만 설계한다.
 // ─────────────────────────────────────────────────────────────
 
+// 내부 타입 값은 그대로 두고(엔진 로직 재사용), 사용자에게 보여지는 이름만
+// 포켓몬 카드게임(+유희왕 일부) 방식으로 통일한다:
+//   vocal   → "공격" (Attack)  — 발동하면 그 즉시 자신의 턴이 끝난다
+//   support → "아이템" (Item) — 보통 1회용, 턴당 여러 장 낼 수 있다
+//   story / chorus → "효과" (Effect) — 지속효과(story)와 반응형(chorus)을
+//     묶어 "효과 카드"로 부른다. story는 유희왕 필드/지속 마법에 가깝고,
+//     chorus는 유희왕 함정 카드(상대 턴에도 발동 가능)에 가깝다.
 export type CardType = "vocal" | "support" | "story" | "chorus";
 export type Rarity = "common" | "rare" | "legendary";
 
@@ -12,6 +19,8 @@ export interface ProducerInfo {
   id: string;
   nameKo: string;
   nameOriginal: string;
+  /** 카드 테마 색상(hex). 어두운 배경 위에 은은하게 얹는 포인트 컬러로 사용한다. */
+  accent: string;
 }
 
 /** 스토리 카드가 매 턴 시작 시 반복 발동하는 효과 */
@@ -43,7 +52,8 @@ export type SongEffect =
   | { kind: "installStoryTick"; duration: number; tick: StoryTick }
   | { kind: "installReviveOnceOnDeath"; maxCost: number }
   | { kind: "markReviveOnceInGraveyard" }
-  | { kind: "stealRandomCard" };
+  | { kind: "stealRandomCard" }
+  | { kind: "drawWithSelfDuplicateChance"; amount: number; duplicateChance: number };
 
 /** 비용을 상황에 따라 낮춰주는 규칙 (함수 대신 데이터로 표현) */
 export type CostRule = {
@@ -66,6 +76,14 @@ export interface SongCardDef {
   youtube100M?: boolean;
   effect: SongEffect;
   costRule?: CostRule;
+  /** true면 발동 후 무덤으로 가지 않고 바로 손으로 돌아온다 (예: 롤링 걸) */
+  reusable?: boolean;
+  /** 원곡 투고일 (YYYY-MM-DD). 확인되지 않은 곡은 생략. */
+  releaseDate?: string;
+  /** 신화입성(니코니코 1,000만 재생) 달성일 (YYYY-MM-DD). isMyth인 곡만. */
+  mythDate?: string;
+  /** 카드 뒷면/툴팁에 짧게 곁들이는 코멘트 — 가사 한 구절의 번역, 혹은 그 곡을
+   *  대표하는 문장. 실제 가사 인용은 아주 짧게(한 줄)만 다뤄 인용 범위를 최소화한다. */
   flavor: string;
 }
 
@@ -160,13 +178,27 @@ export interface GameState {
   revealedHand: { ownerIndex: 0 | 1; cards: CardInstance[] } | null;
 }
 
+/** 덱을 구성할 때 공격/아이템/효과 카드를 각각 얼마의 비율로 뽑을지 (합이 0보다 크면 됨, 내부에서 정규화) */
+export interface DeckTypeRatio {
+  attack: number;
+  item: number;
+  effect: number;
+}
+
 export type GameAction =
   | {
       type: "START_GAME";
-      stageCardIds: string[];
+      // 무대 카드(P카드)는 원칙적으로 게임 시작 시 무작위로 정해진다.
+      // 생략하면 엔진이 STAGE_CARDS 중 1장을 무작위로 뽑는다. (테스트 등의
+      // 목적으로만 직접 지정 — 실제 UI는 항상 생략한다)
+      stageCardIds?: string[];
       mode: GameMode;
       player0Name: string;
       player1Name: string;
+      // 각 플레이어의 70장 덱을 무작위로 구성할 때 쓸 타입별 분배 비율.
+      // 생략하면 카드 풀의 기본 분포를 사용한다.
+      player0DeckRatio?: DeckTypeRatio;
+      player1DeckRatio?: DeckTypeRatio;
       seed?: number;
     }
   | { type: "PLAY_CARD"; playerIndex: 0 | 1; instanceId: string }

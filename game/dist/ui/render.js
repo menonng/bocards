@@ -1,206 +1,341 @@
+import { SONG_CARDS } from "../core/data/songCards.js";
 import { STAGE_CARDS } from "../core/data/stageCards.js";
-import { getSongDef, canPlayCard } from "../core/engine.js";
+import { getSongDef, canPlayCard, DEFAULT_DECK_RATIO } from "../core/engine.js";
 import { getProducer } from "../core/data/producers.js";
-import { cardTypeLabel, effectText, rarityLabel } from "./cardText.js";
+import { cardArtDataUri, producerBadgeDataUri } from "./cardArt.js";
+import { cardTypeLabel, effectText, rarityLabel, recordText } from "./cardText.js";
+const HUMAN = 0;
+const AI = 1;
 function el(html) {
     const wrapper = document.createElement("div");
     wrapper.innerHTML = html.trim();
     return wrapper.firstElementChild;
 }
-// ── 셋업 화면 ────────────────────────────────────────────────
-export function renderSetup(onStart) {
-    const stageOptions = STAGE_CARDS.map((s, i) => `
-      <label class="stage-choice">
-        <input type="radio" name="stage" value="${s.id}" ${i === 0 ? "checked" : ""} />
-        <div class="stage-choice-body">
-          <strong>${s.nameKo}</strong>
-          <p>${s.description}</p>
-        </div>
-      </label>`).join("");
-    const root = el(`
-    <div class="setup-screen">
-      <h1>보카로 카드게임 — 프로토타입</h1>
-      <p class="subtitle">무대 카드(P카드) 1장을 골라 게임 전체 규칙을 정하세요.</p>
-      <div class="stage-grid">${stageOptions}</div>
-
-      <div class="setup-row">
-        <label>승리 모드</label>
-        <select id="mode-select">
-          <option value="battle">배틀 모드 (인기도 0으로 만들기)</option>
-          <option value="chart">차트 모드 (턴 제한 후 인기도 비교)</option>
-        </select>
-      </div>
-
-      <div class="setup-row names">
-        <label>Player 1 <input id="p0-name" placeholder="Player 1" /></label>
-        <label>Player 2 <input id="p1-name" placeholder="Player 2" /></label>
-      </div>
-
-      <button id="start-btn" class="primary-btn">게임 시작 (Pass &amp; Play)</button>
-      <p class="hint">한 화면을 번갈아 보는 로컬 2인용 프로토타입입니다. 자신의 턴이 아니면 화면을 넘겨주세요.</p>
-    </div>
-  `);
-    root.querySelector("#start-btn").addEventListener("click", () => {
-        const stageId = root.querySelector('input[name="stage"]:checked')?.value ??
-            STAGE_CARDS[0].id;
-        const mode = root.querySelector("#mode-select").value;
-        const p0 = root.querySelector("#p0-name").value.trim();
-        const p1 = root.querySelector("#p1-name").value.trim();
-        onStart({ stageCardId: stageId, mode, p0, p1 });
+// ── 툴팁(정보 팝업) ──────────────────────────────────────────
+function attachHoverFlip(node) {
+    const pop = node.querySelector(".info-pop");
+    if (!pop)
+        return;
+    node.addEventListener("mouseenter", () => {
+        const rect = node.getBoundingClientRect();
+        if (rect.right + 300 > window.innerWidth)
+            pop.classList.add("pop-left");
+        else
+            pop.classList.remove("pop-left");
     });
-    return root;
 }
-// ── 핸드오프(패스 앤 플레이) 화면 ─────────────────────────────
-export function renderHandoff(state, viewerIndex, onReveal) {
-    const name = state.players[viewerIndex].name;
-    const reasonText = state.phase === "reaction" ? "코러스 카드로 반응할 차례입니다" : "당신의 턴입니다";
-    const root = el(`
-    <div class="handoff-screen">
-      <h2>화면을 넘겨주세요</h2>
-      <p class="handoff-name">${name}</p>
-      <p>${reasonText} · 턴 ${state.turnNumber}</p>
-      <button id="reveal-btn" class="primary-btn">내 패 확인하기</button>
-    </div>
-  `);
-    root.querySelector("#reveal-btn").addEventListener("click", onReveal);
-    return root;
-}
-// ── 카드 렌더 ────────────────────────────────────────────────
-function renderCard(def, card, playable, reason, onClick) {
-    const node = el(`
-    <div class="card card-${def.rarity} card-type-${def.type} ${playable ? "playable" : "disabled"}"
-         data-instance-id="${card.instanceId}"
-         title="${reason ?? ""}">
-      <div class="card-top">
-        <span class="card-cost">${def.cost}</span>
-        <span class="card-type-badge">${cardTypeLabel(def.type)}</span>
+function songTooltipHtml(def) {
+    const producer = getProducer(def.producerId);
+    const record = recordText(def);
+    const art = cardArtDataUri(def.id, producer.accent);
+    return `
+    <div class="info-pop" style="--pop-accent:${producer.accent}">
+      <img class="info-pop-art" src="${art}" alt="" />
+      <h4>${def.nameKo}</h4>
+      <div class="sub">${def.nameOriginal} · ${producer.nameKo}</div>
+      <div class="details">
+        <b>작곡가</b> ${producer.nameKo}${def.releaseDate ? ` · <b>투고일</b> ${def.releaseDate}` : ""}
+        ${record ? `<br><b>기록</b> ${record}` : ""}
+        <br><b>효과</b> ${effectText(def.effect)}
       </div>
-      <div class="card-name">${def.nameKo}</div>
-      <div class="card-name-original">${def.nameOriginal}</div>
-      <div class="card-producer">${getProducer(def.producerId).nameKo}${def.isMyth ? " · 👑 신화입성" : ""}${def.youtube100M ? " · ▶️ 1억뷰" : ""}</div>
-      <div class="card-effect">${effectText(def.effect)}</div>
-      <div class="card-rarity">${rarityLabel(def.rarity)}</div>
+      <div class="comment">${def.flavor}</div>
+    </div>`;
+}
+function stageTooltipHtml(stageId) {
+    const stage = STAGE_CARDS.find((s) => s.id === stageId);
+    const producer = getProducer(stage.producerId);
+    const art = producerBadgeDataUri(producer.accent, producer.nameKo.slice(0, 2).toUpperCase());
+    return `
+    <div class="info-pop" style="--pop-accent:${producer.accent}">
+      <img class="info-pop-art" src="${art}" alt="" />
+      <h4>${stage.nameKo}</h4>
+      <div class="sub">P카드(무대 카드) · 게임 전체 공용 규칙</div>
+      <div class="details">${stage.description}</div>
+    </div>`;
+}
+// ── 곡 카드 컴포넌트 ─────────────────────────────────────────
+function songCardFull(def) {
+    const producer = getProducer(def.producerId);
+    const art = cardArtDataUri(def.id, producer.accent);
+    const borderClasses = [def.isMyth ? "gold" : "", def.youtube100M ? "red" : ""]
+        .filter(Boolean)
+        .join(" ");
+    const badges = (def.isMyth ? `<span class="badge gold-badge">신화입성</span>` : "") +
+        (def.youtube100M
+            ? `<span class="badge red-badge" style="${def.isMyth ? "right:78px" : ""}">1억뷰</span>`
+            : "");
+    const node = el(`
+    <div class="card ${borderClasses}" style="--card-accent:${producer.accent}">
+      ${badges}
+      <div class="art"><img src="${art}" alt=""/></div>
+      <div class="cardbody">
+        <span class="tag">${cardTypeLabel(def.type)}</span>
+        <div class="ctitle">${def.nameKo}</div>
+        <div class="artist">${producer.nameKo}${def.reusable ? " · 재사용가능" : ""}</div>
+        <div class="effect">${effectText(def.effect)}</div>
+        <div class="cardfoot"><span>비용 ${def.cost}</span><span class="rarity">${rarityLabel(def.rarity)}</span></div>
+      </div>
+      ${songTooltipHtml(def)}
     </div>
   `);
-    if (onClick && playable)
+    attachHoverFlip(node);
+    return node;
+}
+function miniCard(card, playable, reason, onClick) {
+    const def = getSongDef(card.defId);
+    const producer = getProducer(def.producerId);
+    const art = cardArtDataUri(def.id, producer.accent);
+    const borderClasses = [def.isMyth ? "gold" : "", def.youtube100M ? "red" : ""]
+        .filter(Boolean)
+        .join(" ");
+    const node = el(`
+    <div class="mini-card ${borderClasses} ${playable ? "playable" : "disabled"}" title="${reason ?? ""}"
+         style="--card-accent:${producer.accent}">
+      <span class="cost">${def.cost}</span>
+      <img src="${art}" alt=""/>
+      <div class="mc">${def.nameKo}</div>
+      ${songTooltipHtml(def)}
+    </div>
+  `);
+    attachHoverFlip(node);
+    if (playable)
         node.addEventListener("click", onClick);
     return node;
 }
-// ── 게임 보드 ────────────────────────────────────────────────
-export function renderGame(state, handlers) {
-    if (state.phase === "gameover")
-        return renderGameOver(state, handlers);
-    const active = state.activePlayerIndex;
-    const isReaction = state.phase === "reaction";
-    const viewerIndex = isReaction ? (active === 0 ? 1 : 0) : active;
-    const opponentIndex = viewerIndex === 0 ? 1 : 0;
-    const stage = STAGE_CARDS.find((s) => state.activeStageCardIds.includes(s.id));
-    const root = el(`
-    <div class="game-screen">
-      <header>
-        <div class="stage-banner">
-          <strong>${stage?.nameKo ?? ""}</strong>
-          <span>${stage?.description ?? ""}</span>
-        </div>
-        <div class="turn-info">턴 ${state.turnNumber} · ${state.mode === "battle" ? "배틀 모드" : "차트 모드"}</div>
-      </header>
-
-      <section class="players-row">
-        <div class="player-panel" id="panel-opponent"></div>
-        <div class="player-panel" id="panel-me"></div>
-      </section>
-
-      <section class="hand-area" id="hand-area"></section>
-
-      <section class="controls" id="controls"></section>
-
-      <aside class="log-panel" id="log-panel">
-        <h3>진행 기록</h3>
-        <div class="log-list"></div>
-      </aside>
+function stageBadge(stageId) {
+    const stage = STAGE_CARDS.find((s) => s.id === stageId);
+    const producer = getProducer(stage.producerId);
+    const art = producerBadgeDataUri(producer.accent, producer.nameKo.slice(0, 2).toUpperCase());
+    const node = el(`
+    <div class="stage-badge" style="--card-accent:${producer.accent}">
+      <img src="${art}" alt=""/>
+      <div class="stage-badge-name">${stage.nameKo}</div>
+      ${stageTooltipHtml(stageId)}
     </div>
   `);
-    root.querySelector("#panel-opponent").replaceWith(renderPlayerPanel(state, opponentIndex, "상대"));
-    root.querySelector("#panel-me").replaceWith(renderPlayerPanel(state, viewerIndex, "나"));
-    const handArea = root.querySelector("#hand-area");
-    const player = state.players[viewerIndex];
-    for (const card of player.hand) {
-        const def = getSongDef(card.defId);
-        const check = canPlayCard(state, viewerIndex, card.instanceId);
-        handArea.appendChild(renderCard(def, card, check.ok, check.reason, () => handlers.onPlayCard(viewerIndex, card.instanceId)));
-    }
-    const controls = root.querySelector("#controls");
-    if (isReaction) {
-        controls.appendChild(el(`<button id="pass-btn" class="secondary-btn">패스 (반응하지 않음)</button>`));
-        controls.querySelector("#pass-btn").addEventListener("click", () => handlers.onPassReaction(viewerIndex));
-    }
-    else {
-        controls.appendChild(el(`<div class="pp-info">남은 메인 발동: ${player.mainPlaysRemaining} · 재생 포인트: ${player.pp}/${player.ppMax}</div>`));
-        controls.appendChild(el(`<button id="end-turn-btn" class="primary-btn">턴 종료</button>`));
-        controls.querySelector("#end-turn-btn").addEventListener("click", () => handlers.onEndTurn(viewerIndex));
-    }
-    const logList = root.querySelector(".log-list");
-    for (const line of state.log.slice(-40)) {
-        logList.appendChild(el(`<div class="log-line">${line}</div>`));
-    }
-    logList.scrollTop = logList.scrollHeight;
-    if (state.revealedHand && state.revealedHand.ownerIndex === opponentIndex) {
-        root.appendChild(renderRevealModal(state, handlers));
-    }
+    attachHoverFlip(node);
+    return node;
+}
+// ── 앱 셸(사이드바 + 상단바) ───────────────────────────────────
+function shell(screen, title, content, onNav) {
+    const root = el(`
+    <div class="app">
+      <aside>
+        <div class="logo">BO<span>CARDS</span></div>
+        <div class="nav">
+          <button data-screen="battle">◈  대전</button>
+          <button data-screen="cards">▦  카드 목록</button>
+          <button data-screen="deck">◇  덱 설정</button>
+        </div>
+        <div class="meta">보카로 카드게임 프로토타입<br>AI 대전 모드<br><br>70장 무작위 덱<br>비율은 플레이어가 결정</div>
+      </aside>
+      <main>
+        <div class="top">
+          <div><div class="eyebrow">VOCALOID CARD GAME</div><div class="title">${title}</div></div>
+        </div>
+        <div class="content"></div>
+      </main>
+    </div>
+  `);
+    root.querySelectorAll(".nav button").forEach((b) => {
+        if (b.dataset.screen === screen)
+            b.classList.add("active");
+        b.addEventListener("click", () => onNav(b.dataset.screen));
+    });
+    root.querySelector(".content").appendChild(content);
     return root;
 }
-function renderPlayerPanel(state, index, label) {
-    const p = state.players[index];
-    const stories = p.fieldStories
-        .map((s) => `<span class="story-chip">${getSongDef(s.defId).nameKo} (${s.remainingTurns === 999 ? "대기중" : s.remainingTurns + "턴"})</span>`)
-        .join("") || "<span class='muted'>없음</span>";
-    return el(`
-    <div class="player-panel-inner ${index === state.activePlayerIndex ? "is-active" : ""}">
-      <h3>${p.name} <span class="muted">(${label})</span></h3>
-      <div class="stat">인기도: <b>${p.popularity}</b></div>
-      <div class="stat">재생 포인트: ${p.pp}/${p.ppMax}</div>
-      <div class="stat">손패: ${p.hand.length} · 덱: ${p.deck.length} · 무덤: ${p.graveyard.length}</div>
-      <div class="stat">필드: ${stories}</div>
+// ── 덱 설정 화면 ─────────────────────────────────────────────
+function defaultPercent(ratio, key) {
+    const total = ratio.attack + ratio.item + ratio.effect;
+    return total > 0 ? Math.round((ratio[key] / total) * 100) : 33;
+}
+export function renderDeckScreen(handlers) {
+    const stageNames = STAGE_CARDS.map((s) => `<span class="stage-name-chip">${s.nameKo}</span>`).join("");
+    const content = el(`
+    <div class="deck">
+      <div class="panel">
+        <h3>70장 무작위 덱</h3>
+        <p style="color:#8f95a0;font-size:13px;line-height:1.7">
+          현존하는 곡 카드 풀에서 무작위로 70장을 뽑아 덱을 만듭니다. 아래 비율을 정하면
+          공격/아이템/효과 카드가 그 비율에 가깝게 섞여 들어갑니다 (합이 100이 아니어도 자동 환산).
+        </p>
+        <div class="distribution">
+          <div class="sliderrow"><span>공격</span><input type="number" min="0" max="100" id="ratio-attack" value="${defaultPercent(DEFAULT_DECK_RATIO, "attack")}"><span class="num">%</span></div>
+          <div class="sliderrow"><span>아이템</span><input type="number" min="0" max="100" id="ratio-item" value="${defaultPercent(DEFAULT_DECK_RATIO, "item")}"><span class="num">%</span></div>
+          <div class="sliderrow"><span>효과</span><input type="number" min="0" max="100" id="ratio-effect" value="${defaultPercent(DEFAULT_DECK_RATIO, "effect")}"><span class="num">%</span></div>
+        </div>
+
+        <div class="setup-row" style="margin-top:18px">
+          <label>내 이름 <input id="p0-name" placeholder="Player 1"/></label>
+        </div>
+        <div class="setup-row">
+          <label>승리 모드</label>
+          <select id="mode-select">
+            <option value="battle">배틀 모드 (인기도 0으로 만들기)</option>
+            <option value="chart">차트 모드 (턴 제한 후 인기도 비교)</option>
+          </select>
+        </div>
+
+        <p style="color:#8f95a0;font-size:12px">무대 카드(P카드)는 시작 시 아래 중 1장이 무작위로 정해집니다.</p>
+        <div class="stage-pool">${stageNames}</div>
+
+        <button id="start-btn" class="action" style="margin-top:14px">AI 대전 시작</button>
+      </div>
+      <div class="panel">
+        <h3>안내</h3>
+        <div class="log">
+          이 프로토타입은 AI 상대와의 1인 대전만 지원합니다.<br><br>
+          · 공격 카드를 내면 그 즉시 자신의 턴이 끝납니다.<br>
+          · 아이템 카드는 재생 포인트가 허락하는 한 여러 장 낼 수 있습니다.<br>
+          · 효과 카드 중 일부(코러스)는 상대 턴에도 반응으로 낼 수 있습니다.
+        </div>
+      </div>
     </div>
   `);
+    content.querySelector("#start-btn").addEventListener("click", () => {
+        const name = content.querySelector("#p0-name").value.trim();
+        const mode = content.querySelector("#mode-select").value;
+        const val = (id) => Math.max(0, Number(content.querySelector(`#${id}`).value) || 0);
+        const ratio = {
+            attack: val("ratio-attack"),
+            item: val("ratio-item"),
+            effect: val("ratio-effect"),
+        };
+        handlers.onStartGame({ name, mode, ratio });
+    });
+    return shell("deck", "덱 설정", content, handlers.onNav);
 }
-function renderRevealModal(state, handlers) {
+// ── 카드 목록 화면 ───────────────────────────────────────────
+export function renderCardsScreen(onNav) {
+    const content = el(`
+    <div>
+      <h3 style="margin:0 0 4px">P카드 (무대 카드) — 6종</h3>
+      <p style="color:#8f95a0;font-size:12px;margin:0 0 14px">게임 시작 시 무작위로 1장이 정해져, 판 전체에 공용으로 적용됩니다. 곡 카드와는 별개입니다.</p>
+      <div class="stage-grid" id="stage-list"></div>
+      <h3 style="margin:26px 0 4px">곡 카드 — ${SONG_CARDS.length}장</h3>
+      <p style="color:#8f95a0;font-size:12px;margin:0 0 14px">금색 얇은 테두리 = 신화입성곡 · 빨간 얇은 테두리 = 유튜브 1억 회 재생. 카드에 마우스를 올리고 1초 기다리면 상세 정보가 뜹니다.</p>
+      <div class="cards" id="song-list"></div>
+    </div>
+  `);
+    const stageList = content.querySelector("#stage-list");
+    for (const s of STAGE_CARDS)
+        stageList.appendChild(stageBadge(s.id));
+    const songList = content.querySelector("#song-list");
+    for (const def of SONG_CARDS)
+        songList.appendChild(songCardFull(def));
+    return shell("cards", "카드 목록", content, onNav);
+}
+// ── 대전 화면 ────────────────────────────────────────────────
+function fieldSummary(state, index) {
+    const p = state.players[index];
+    if (p.fieldStories.length === 0)
+        return "없음";
+    return p.fieldStories
+        .map((s) => `${getSongDef(s.defId).nameKo}(${s.remainingTurns === 999 ? "대기" : s.remainingTurns + "턴"})`)
+        .join(", ");
+}
+export function renderBattleScreen(state, handlers) {
+    const content = el(`<div class="battle"></div>`);
+    const board = el(`<div class="board"></div>`);
+    const side = el(`<div class="side"></div>`);
+    content.appendChild(board);
+    content.appendChild(side);
+    const stageId = state.activeStageCardIds[0];
+    const isReaction = state.phase === "reaction";
+    const isHumanTurn = (state.phase === "main" && state.activePlayerIndex === HUMAN) ||
+        (isReaction && state.activePlayerIndex === AI);
+    board.appendChild(el(`<div class="side-stat"><span>OPPONENT / ${state.players[AI].name}</span><span class="hp">♥ ${state.players[AI].popularity}</span></div>`));
+    const stageWrap = el(`<div class="arena"></div>`);
+    if (stageId)
+        stageWrap.appendChild(stageBadge(stageId));
+    const turnLabel = el(`<div class="turn">${state.phase === "gameover" ? "게임 종료" : isReaction ? (isHumanTurn ? "당신의 반응 구간" : "상대의 반응 구간") : state.activePlayerIndex === HUMAN ? "당신의 턴" : "상대의 턴"} · 턴 ${state.turnNumber}</div>`);
+    stageWrap.appendChild(turnLabel);
+    board.appendChild(stageWrap);
+    board.appendChild(el(`<div class="side-stat"><span>YOU / ${state.players[HUMAN].name}</span><span class="hp">♥ ${state.players[HUMAN].popularity}</span></div>`));
+    const handRow = el(`<div class="hand"></div>`);
+    const human = state.players[HUMAN];
+    for (const card of human.hand) {
+        const check = canPlayCard(state, HUMAN, card.instanceId);
+        handRow.appendChild(miniCard(card, check.ok && isHumanTurn, check.reason, () => handlers.onPlayCard(card.instanceId)));
+    }
+    board.appendChild(handRow);
+    // 사이드 패널
+    side.appendChild(el(`
+      <div class="panel">
+        <h3>RESOURCES</h3>
+        <div class="resource">
+          <div class="res"><b>${human.pp}/${human.ppMax}</b><small>재생 포인트</small></div>
+          <div class="res"><b>${human.mainPlaysRemaining}</b><small>남은 메인 발동</small></div>
+        </div>
+      </div>
+    `));
+    side.appendChild(el(`
+      <div class="panel">
+        <h3>FIELD</h3>
+        <div class="log">
+          <b>나의 효과</b> ${fieldSummary(state, HUMAN)}<br>
+          <b>상대 효과</b> ${fieldSummary(state, AI)}<br>
+          덱 ${human.deck.length} · 손패 ${human.hand.length} · 무덤 ${human.graveyard.length}
+        </div>
+      </div>
+    `));
+    const logLines = state.log
+        .slice(-12)
+        .map((l) => `<div>${l}</div>`)
+        .join("");
+    side.appendChild(el(`<div class="panel"><h3>LAST ACTION</h3><div class="log">${logLines}</div></div>`));
+    if (state.phase === "gameover") {
+        const winnerText = state.winnerIndex === "draw"
+            ? "무승부!"
+            : state.winnerIndex === HUMAN
+                ? "승리했습니다!"
+                : "패배했습니다.";
+        side.appendChild(el(`<button class="action" id="restart-btn">${winnerText} 다시 하기</button>`));
+    }
+    else if (isReaction && isHumanTurn) {
+        side.appendChild(el(`<button class="action" id="pass-btn">패스 (반응하지 않음)</button>`));
+    }
+    else if (state.phase === "main" && state.activePlayerIndex === HUMAN) {
+        side.appendChild(el(`<button class="action" id="end-turn-btn">턴 종료</button>`));
+    }
+    else {
+        side.appendChild(el(`<div class="log" style="text-align:center;padding:10px 0">상대(AI)가 생각 중...</div>`));
+    }
+    if (state.revealedHand && state.revealedHand.ownerIndex === AI) {
+        content.appendChild(revealModal(state, handlers));
+    }
+    const root = shell("battle", "대전", content, handlers.onNav);
+    root.querySelector("#end-turn-btn")?.addEventListener("click", handlers.onEndTurn);
+    root.querySelector("#pass-btn")?.addEventListener("click", handlers.onPassReaction);
+    root.querySelector("#restart-btn")?.addEventListener("click", handlers.onRestart);
+    return root;
+}
+function revealModal(state, handlers) {
     const reveal = state.revealedHand;
-    const cardsHtml = reveal.cards
-        .map((c) => {
-        const def = getSongDef(c.defId);
-        return `<div class="mini-card">${def.nameKo} (${def.cost})</div>`;
-    })
-        .join("") || "<span class='muted'>손패 없음</span>";
-    const root = el(`
+    const cardsHtml = reveal.cards.map((c) => `<div class="mini-card-flat">${getSongDef(c.defId).nameKo}</div>`).join("") ||
+        "<span class='muted'>손패 없음</span>";
+    const node = el(`
     <div class="modal-overlay">
       <div class="modal-box">
         <h3>${state.players[reveal.ownerIndex].name}의 손패 공개</h3>
         <div class="mini-card-list">${cardsHtml}</div>
-        <button id="dismiss-reveal" class="primary-btn">확인</button>
+        <button id="dismiss-reveal" class="action">확인</button>
       </div>
     </div>
   `);
-    root.querySelector("#dismiss-reveal").addEventListener("click", handlers.onDismissReveal);
-    return root;
+    node.querySelector("#dismiss-reveal").addEventListener("click", handlers.onDismissReveal);
+    return node;
 }
-function renderGameOver(state, handlers) {
-    const [p0, p1] = state.players;
-    const winnerText = state.winnerIndex === "draw"
-        ? "무승부!"
-        : `${state.players[state.winnerIndex].name} 승리!`;
-    const root = el(`
-    <div class="gameover-screen">
-      <h1>${winnerText}</h1>
-      <p>${p0.name}: 인기도 ${p0.popularity} / ${p1.name}: 인기도 ${p1.popularity}</p>
-      <button id="restart-btn" class="primary-btn">다시 하기</button>
-      <div class="log-panel">
-        <h3>진행 기록</h3>
-        <div class="log-list">${state.log.map((l) => `<div class="log-line">${l}</div>`).join("")}</div>
-      </div>
+export function renderBattlePlaceholder(handlers) {
+    const content = el(`
+    <div class="panel" style="max-width:480px">
+      <h3>아직 진행 중인 대전이 없습니다</h3>
+      <p style="color:#8f95a0;font-size:13px;line-height:1.7">먼저 "덱 설정" 탭에서 카드 비율을 정하고 대전을 시작하세요.</p>
+      <button class="action" id="goto-deck">덱 설정으로 이동</button>
     </div>
   `);
-    root.querySelector("#restart-btn").addEventListener("click", handlers.onRestart);
-    return root;
+    content.querySelector("#goto-deck").addEventListener("click", () => handlers.onNav("deck"));
+    return shell("battle", "대전", content, handlers.onNav);
 }
 //# sourceMappingURL=render.js.map
