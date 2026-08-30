@@ -2,7 +2,7 @@ import { SONG_CARDS } from "../core/data/songCards.js";
 import { STAGE_CARDS } from "../core/data/stageCards.js";
 import { getSongDef, canPlayCard, DEFAULT_DECK_RATIO } from "../core/engine.js";
 import { getProducer } from "../core/data/producers.js";
-import { cardArtDataUri, producerBadgeDataUri } from "./cardArt.js";
+import { cardArtDataUri, producerBadgeDataUri, twitterAvatarUrl, youtubeThumbnailUrl } from "./cardArt.js";
 import { cardTypeLabel, effectText, rarityLabel, recordText } from "./cardText.js";
 const HUMAN = 0;
 const AI = 1;
@@ -24,13 +24,43 @@ function attachHoverFlip(node) {
             pop.classList.remove("pop-left");
     });
 }
+/** 곡 카드 아트: 공식 YouTube 영상이 확인된 곡은 그 썸네일(i.ytimg.com)을,
+ *  아니면 오리지널 SVG를 사용한다. 썸네일 로드 실패 시 자동으로 SVG로 대체. */
+function songArt(def, producer) {
+    const fallback = cardArtDataUri(def.id, producer.accent);
+    if (def.youtubeId) {
+        return {
+            src: youtubeThumbnailUrl(def.youtubeId),
+            fallback,
+            attribution: "출처: YouTube 공식 업로드 썸네일",
+        };
+    }
+    return { src: fallback, fallback, attribution: null };
+}
+/** P카드(무대 카드) 아트: 공식 X 계정이 있으면 그 프로필 사진을, 없으면
+ *  오리지널 배지를 사용한다. 프로필 사진 로드 실패 시 자동으로 배지로 대체. */
+function producerArt(producer) {
+    const fallback = producerBadgeDataUri(producer.accent, producer.nameKo.slice(0, 2).toUpperCase());
+    if (producer.twitterHandle) {
+        return {
+            src: twitterAvatarUrl(producer.twitterHandle),
+            fallback,
+            attribution: `출처: X(@${producer.twitterHandle}) 프로필 사진`,
+        };
+    }
+    return { src: fallback, fallback, attribution: null };
+}
+function imgTag(art, className) {
+    return `<img class="${className}" src="${art.src}" alt="" onerror="this.onerror=null;this.src='${art.fallback}'"/>`;
+}
 function songTooltipHtml(def) {
     const producer = getProducer(def.producerId);
     const record = recordText(def);
-    const art = cardArtDataUri(def.id, producer.accent);
+    const art = songArt(def, producer);
     return `
     <div class="info-pop" style="--pop-accent:${producer.accent}">
-      <img class="info-pop-art" src="${art}" alt="" />
+      ${imgTag(art, "info-pop-art")}
+      ${art.attribution ? `<div class="art-source">${art.attribution}</div>` : ""}
       <h4>${def.nameKo}</h4>
       <div class="sub">${def.nameOriginal} · ${producer.nameKo}</div>
       <div class="details">
@@ -44,10 +74,11 @@ function songTooltipHtml(def) {
 function stageTooltipHtml(stageId) {
     const stage = STAGE_CARDS.find((s) => s.id === stageId);
     const producer = getProducer(stage.producerId);
-    const art = producerBadgeDataUri(producer.accent, producer.nameKo.slice(0, 2).toUpperCase());
+    const art = producerArt(producer);
     return `
     <div class="info-pop" style="--pop-accent:${producer.accent}">
-      <img class="info-pop-art" src="${art}" alt="" />
+      ${imgTag(art, "info-pop-art")}
+      ${art.attribution ? `<div class="art-source">${art.attribution}</div>` : ""}
       <h4>${stage.nameKo}</h4>
       <div class="sub">P카드(무대 카드) · 게임 전체 공용 규칙</div>
       <div class="details">${stage.description}</div>
@@ -56,7 +87,7 @@ function stageTooltipHtml(stageId) {
 // ── 곡 카드 컴포넌트 ─────────────────────────────────────────
 function songCardFull(def) {
     const producer = getProducer(def.producerId);
-    const art = cardArtDataUri(def.id, producer.accent);
+    const art = songArt(def, producer);
     const borderClasses = [def.isMyth ? "gold" : "", def.youtube100M ? "red" : ""]
         .filter(Boolean)
         .join(" ");
@@ -67,13 +98,13 @@ function songCardFull(def) {
     const node = el(`
     <div class="card ${borderClasses}" style="--card-accent:${producer.accent}">
       ${badges}
-      <div class="art"><img src="${art}" alt=""/></div>
+      <div class="art">${imgTag(art, "")}</div>
       <div class="cardbody">
         <span class="tag">${cardTypeLabel(def.type)}</span>
         <div class="ctitle">${def.nameKo}</div>
         <div class="artist">${producer.nameKo}${def.reusable ? " · 재사용가능" : ""}</div>
         <div class="effect">${effectText(def.effect)}</div>
-        <div class="cardfoot"><span>비용 ${def.cost}</span><span class="rarity">${rarityLabel(def.rarity)}</span></div>
+        <div class="cardfoot"><span class="rarity">${rarityLabel(def.rarity)}</span></div>
       </div>
       ${songTooltipHtml(def)}
     </div>
@@ -84,15 +115,14 @@ function songCardFull(def) {
 function miniCard(card, playable, reason, onClick) {
     const def = getSongDef(card.defId);
     const producer = getProducer(def.producerId);
-    const art = cardArtDataUri(def.id, producer.accent);
+    const art = songArt(def, producer);
     const borderClasses = [def.isMyth ? "gold" : "", def.youtube100M ? "red" : ""]
         .filter(Boolean)
         .join(" ");
     const node = el(`
     <div class="mini-card ${borderClasses} ${playable ? "playable" : "disabled"}" title="${reason ?? ""}"
          style="--card-accent:${producer.accent}">
-      <span class="cost">${def.cost}</span>
-      <img src="${art}" alt=""/>
+      ${imgTag(art, "")}
       <div class="mc">${def.nameKo}</div>
       ${songTooltipHtml(def)}
     </div>
@@ -105,10 +135,10 @@ function miniCard(card, playable, reason, onClick) {
 function stageBadge(stageId) {
     const stage = STAGE_CARDS.find((s) => s.id === stageId);
     const producer = getProducer(stage.producerId);
-    const art = producerBadgeDataUri(producer.accent, producer.nameKo.slice(0, 2).toUpperCase());
+    const art = producerArt(producer);
     const node = el(`
     <div class="stage-badge" style="--card-accent:${producer.accent}">
-      <img src="${art}" alt=""/>
+      ${imgTag(art, "")}
       <div class="stage-badge-name">${stage.nameKo}</div>
       ${stageTooltipHtml(stageId)}
     </div>
@@ -185,9 +215,10 @@ export function renderDeckScreen(handlers) {
       <div class="panel">
         <h3>안내</h3>
         <div class="log">
-          이 프로토타입은 AI 상대와의 1인 대전만 지원합니다.<br><br>
+          이 프로토타입은 AI 상대와의 1인 대전만 지원합니다. 재생 포인트 같은
+          자원 시스템은 없습니다 — 인기도(체력)만 신경 쓰면 됩니다.<br><br>
           · 공격 카드를 내면 그 즉시 자신의 턴이 끝납니다.<br>
-          · 아이템 카드는 재생 포인트가 허락하는 한 여러 장 낼 수 있습니다.<br>
+          · 아이템 카드는 손패에 있는 한 몇 장이든 낼 수 있습니다.<br>
           · 효과 카드 중 일부(코러스)는 상대 턴에도 반응으로 낼 수 있습니다.
         </div>
       </div>
@@ -260,12 +291,11 @@ export function renderBattleScreen(state, handlers) {
         handRow.appendChild(miniCard(card, check.ok && isHumanTurn, check.reason, () => handlers.onPlayCard(card.instanceId)));
     }
     board.appendChild(handRow);
-    // 사이드 패널
+    // 사이드 패널 (자원 시스템 없음 — 메인 발동 횟수만 표시)
     side.appendChild(el(`
       <div class="panel">
-        <h3>RESOURCES</h3>
+        <h3>ACTIONS</h3>
         <div class="resource">
-          <div class="res"><b>${human.pp}/${human.ppMax}</b><small>재생 포인트</small></div>
           <div class="res"><b>${human.mainPlaysRemaining}</b><small>남은 메인 발동</small></div>
         </div>
       </div>

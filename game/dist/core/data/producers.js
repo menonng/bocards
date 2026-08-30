@@ -4,13 +4,16 @@
 // accent 색상은 실제 앨범 아트/일러스트를 그대로 추출한 것이 아니라, 각 P의
 // 대표곡·브랜드 이미지에서 받은 "무드"를 참고해 새로 고른 값이다 (저작권
 // 있는 이미지를 직접 사용하지 않기 위함 — game/README.md 참고).
+// twitterHandle은 사용자가 직접 전달한 공식 X(트위터) 계정이다. P카드 배지는
+// unavatar.io(공개 아바타 프록시 서비스)를 통해 해당 계정의 현재 프로필
+// 사진을 실시간으로 미리보기하고, 실패하면 오리지널 배지로 자동 대체한다.
 export const PRODUCERS = [
-    { id: "deco27", nameKo: "DECO*27", nameOriginal: "DECO*27", accent: "#d1445a" },
-    { id: "hachi", nameKo: "하치", nameOriginal: "ハチ", accent: "#6f8fae" },
-    { id: "wowaka", nameKo: "wowaka", nameOriginal: "wowaka", accent: "#8890a0" },
-    { id: "iyowa", nameKo: "이요와", nameOriginal: "いよわ", accent: "#c9714a" },
-    { id: "tak", nameKo: "Tak", nameOriginal: "TAK", accent: "#5cb3d9" },
-    { id: "mang50", nameKo: "50mang", nameOriginal: "50mang(쏘망)", accent: "#8a6fae" },
+    { id: "deco27", nameKo: "DECO*27", nameOriginal: "DECO*27", accent: "#d1445a", twitterHandle: "DECO27" },
+    { id: "hachi", nameKo: "하치", nameOriginal: "ハチ", accent: "#6f8fae", twitterHandle: "hachi_08" },
+    { id: "wowaka", nameKo: "wowaka", nameOriginal: "wowaka", accent: "#8890a0", twitterHandle: "wowaka" },
+    { id: "iyowa", nameKo: "이요와", nameOriginal: "いよわ", accent: "#c9714a", twitterHandle: "igusuri_please" },
+    { id: "tak", nameKo: "Tak", nameOriginal: "TAK", accent: "#5cb3d9", twitterHandle: "TAK_DRDR" },
+    { id: "mang50", nameKo: "50mang", nameOriginal: "50mang(쏘망)", accent: "#8a6fae", twitterHandle: "50mang_" },
 ];
 // 무대 카드는 없지만("게스트") 신화입성곡/유튜브 1억뷰곡을 곡 카드로 등록하기 위해
 // 추가한 프로듀서들. P카드에 없는 보카로P의 곡도 넣어도 된다는 방침에 따라 포함.

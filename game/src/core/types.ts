@@ -21,13 +21,14 @@ export interface ProducerInfo {
   nameOriginal: string;
   /** 카드 테마 색상(hex). 어두운 배경 위에 은은하게 얹는 포인트 컬러로 사용한다. */
   accent: string;
+  /** 공식 X(트위터) 핸들 (@ 제외). 있으면 P카드 배지에 프로필 사진 미리보기를 시도한다. */
+  twitterHandle?: string;
 }
 
 /** 스토리 카드가 매 턴 시작 시 반복 발동하는 효과 */
 export type StoryTick =
   | { kind: "damageOpponent"; amount: number }
-  | { kind: "drawCard"; amount: number }
-  | { kind: "gainPPThisTurn"; amount: number };
+  | { kind: "drawCard"; amount: number };
 
 /** 곡 카드(스킬 카드)의 발동 효과. 데이터만으로 표현해 직렬화 가능하게 유지한다. */
 export type SongEffect =
@@ -44,30 +45,22 @@ export type SongEffect =
       selfPopularityCostOnTurnEnd: number;
     }
   | { kind: "debuffOpponentNextVocal"; amount: number }
-  | { kind: "gainPPNow"; amount: number }
+  | { kind: "gainExtraMainPlay"; amount: number }
   | { kind: "draw"; amount: number }
   | { kind: "drawThenDiscardRandom"; draw: number; discard: number }
   | { kind: "damageThenPeekOpponentHand"; amount: number }
   | { kind: "negateOpponentNextSupportOrStory" }
   | { kind: "installStoryTick"; duration: number; tick: StoryTick }
-  | { kind: "installReviveOnceOnDeath"; maxCost: number }
+  | { kind: "installReviveOnceOnDeath" }
   | { kind: "markReviveOnceInGraveyard" }
   | { kind: "stealRandomCard" }
   | { kind: "drawWithSelfDuplicateChance"; amount: number; duplicateChance: number };
-
-/** 비용을 상황에 따라 낮춰주는 규칙 (함수 대신 데이터로 표현) */
-export type CostRule = {
-  kind: "reduceIfHandLow";
-  threshold: number;
-  reduction: number;
-};
 
 export interface SongCardDef {
   id: string;
   nameKo: string;
   nameOriginal: string;
   producerId: string;
-  cost: number;
   type: CardType;
   rarity: Rarity;
   /** 신화입성곡(니코니코동화 1,000만 재생 달성) 여부 */
@@ -75,11 +68,14 @@ export interface SongCardDef {
   /** 유튜브 1억 회 재생 달성 여부 (신화입성과 별개 기준) */
   youtube100M?: boolean;
   effect: SongEffect;
-  costRule?: CostRule;
   /** true면 발동 후 무덤으로 가지 않고 바로 손으로 돌아온다 (예: 롤링 걸) */
   reusable?: boolean;
   /** 원곡 투고일 (YYYY-MM-DD). 확인되지 않은 곡은 생략. */
   releaseDate?: string;
+  /** 공식(또는 공식으로 확인되는) YouTube 업로드 영상 ID. 카드 아트로 그
+   *  영상의 공식 썸네일(i.ytimg.com)을 가리키는 데 사용한다 — 파일을 복제해
+   *  저장소에 올리지 않는다. 확인되지 않은 곡은 생략(오리지널 SVG로 대체). */
+  youtubeId?: string;
   /** 신화입성(니코니코 1,000만 재생) 달성일 (YYYY-MM-DD). isMyth인 곡만. */
   mythDate?: string;
   /** 카드 뒷면/툴팁에 짧게 곁들이는 코멘트 — 가사 한 구절의 번역, 혹은 그 곡을
@@ -92,14 +88,14 @@ export interface StageModifiers {
   allSupportEffectBonus?: number;
   allVocalDamageBonus?: number;
   startPopularityDelta?: number;
-  ppMaxDelta?: number;
   storyDurationDelta?: number;
   turnLimitDelta?: number;
   extraCardPlayPerTurn?: number;
   handLimitDelta?: number;
   extraDrawPerTurn?: number;
   endOfTurnRandomDiscard?: number;
-  graveyardReviveOnTurnStartMaxCost?: number;
+  /** 자신 턴 시작 시 무덤에서 손으로 되돌릴 카드 장수 (50mang). 조건 없이 무덤의 카드 중 하나를 되돌린다. */
+  graveyardReviveOnTurnStart?: number;
 }
 
 export interface StageCardDef {
@@ -125,16 +121,14 @@ export interface FieldStory {
   ownerIndex: 0 | 1;
   remainingTurns: number;
   tick?: StoryTick;
-  /** 윤회형(1회성 트리거) 스토리는 tick 대신 아래 두 값을 사용 */
+  /** 윤회형(1회성 트리거) 스토리는 tick 대신 이 값을 사용 */
   reviveOnDeathAvailable?: boolean;
-  reviveMaxCost?: number;
 }
 
 export interface PlayerState {
   name: string;
+  /** 체력처럼 한눈에 보이는 유일한 자원 (구 "인기도"). 0이 되면 패배. */
   popularity: number;
-  pp: number;
-  ppMax: number;
   handLimit: number;
   hand: CardInstance[];
   deck: CardInstance[];
@@ -150,6 +144,10 @@ export interface PlayerState {
   pendingSelfDamageOnTurnEnd: number;
   /** 다음에 낼 서포트/스토리 카드 효과가 무효화되는지 (살리에리) */
   negateNextSupportOrStory: boolean;
+  /** 이번 턴에 이미 사용한 재사용 가능(reusable) 카드의 defId 목록.
+   *  자원 시스템이 없는 대신, 손으로 돌아오는 카드(롤링 걸 등)를 무한 반복
+   *  사용해 턴이 끝나지 않는 것을 막기 위해 "재사용 카드는 턴당 1회"로 제한한다. */
+  reusableCardsPlayedThisTurn: string[];
 }
 
 export type GamePhase =

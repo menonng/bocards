@@ -97,7 +97,6 @@ main{padding:26px 32px 40px;overflow-x:hidden}
 .mini-card.disabled{opacity:.4;cursor:not-allowed}
 .mini-card img{width:100%;height:60px;object-fit:cover;border-radius:8px 8px 0 0;display:block}
 .mini-card .mc{font-size:10px;padding:6px 7px;font-weight:750}
-.mini-card .cost{position:absolute;top:5px;left:5px;border-radius:50%;width:18px;height:18px;display:grid;place-items:center;background:#111;color:#fff;font-size:9px;z-index:2}
 
 /* ── 정보 팝업(툴팁) ── */
 .info-pop{
@@ -111,7 +110,8 @@ main{padding:26px 32px 40px;overflow-x:hidden}
 .card:hover .info-pop,.mini-card:hover .info-pop,.stage-badge:hover .info-pop{
   opacity:1;visibility:visible;transition-delay:1s;
 }
-.info-pop-art{width:100%;border-radius:8px;margin-bottom:10px;display:block}
+.info-pop-art{width:100%;aspect-ratio:1.6;object-fit:cover;border-radius:8px;display:block;background:#0c0c10}
+.art-source{font-size:10px;color:#6b7078;margin:-6px 0 10px;text-align:right}
 .info-pop h4{margin:0 0 4px;font-size:17px;font-weight:800}
 .info-pop .sub{font-size:12px;color:#8890a0;margin-bottom:10px}
 .info-pop .details{font-size:14px;color:#e3e5e9;line-height:1.7;font-weight:700}

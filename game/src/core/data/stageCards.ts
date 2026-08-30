@@ -60,7 +60,7 @@ export const STAGE_CARDS: StageCardDef[] = [
     nameKo: "50mang",
     description:
       "윤회의 밤 — 한국 설화 속 존재들처럼, 한 번 쓰러진 곡도 다시 돌아온다. " +
-      "[전원] 자신 턴 시작 시, 무덤에 비용 2 이하 카드가 있으면 1장을 손으로 되돌린다.",
-    modifiers: { graveyardReviveOnTurnStartMaxCost: 2 },
+      "[전원] 자신 턴 시작 시, 무덤에 카드가 있으면 1장을 손으로 되돌린다.",
+    modifiers: { graveyardReviveOnTurnStart: 1 },
   },
 ];

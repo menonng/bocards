@@ -6,8 +6,6 @@ function tickText(tick: StoryTick): string {
       return `상대 인기도 ${tick.amount} 감소`;
     case "drawCard":
       return `카드 ${tick.amount}장 드로우`;
-    case "gainPPThisTurn":
-      return `재생 포인트 +${tick.amount}`;
   }
 }
 
@@ -36,8 +34,8 @@ export function effectText(effect: SongEffect): string {
         : `다음 공격 카드 데미지 +${effect.amount}`;
     case "debuffOpponentNextVocal":
       return `상대의 다음 공격 카드 데미지 -${effect.amount}`;
-    case "gainPPNow":
-      return `재생 포인트 즉시 +${effect.amount}`;
+    case "gainExtraMainPlay":
+      return `이번 턴에 공격/효과(지속형) 카드를 ${effect.amount}장 더 낼 수 있음`;
     case "draw":
       return `카드 ${effect.amount}장 드로우`;
     case "drawThenDiscardRandom":
@@ -47,7 +45,7 @@ export function effectText(effect: SongEffect): string {
     case "installStoryTick":
       return `설치: ${effect.duration}턴간 매 턴 시작 시 [${tickText(effect.tick)}]`;
     case "installReviveOnceOnDeath":
-      return `설치: 자신의 비용 ${effect.maxCost} 이하 카드가 무덤에 갈 때 1회, 즉시 손으로 되돌림`;
+      return `설치: 자신의 카드가 무덤에 갈 때 1회, 즉시 손으로 되돌림`;
     case "markReviveOnceInGraveyard":
       return `이 카드는 무덤에 간 뒤, 자신의 다음 턴 시작 시 1회 손으로 돌아온다`;
     case "stealRandomCard":

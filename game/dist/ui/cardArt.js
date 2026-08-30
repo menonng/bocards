@@ -85,6 +85,22 @@ export function producerBadgeDataUri(color, initials) {
   </svg>`;
     return svgToDataUri(svg);
 }
+/**
+ * 공식(또는 공식으로 확인되는) YouTube 업로드 영상의 썸네일 URL.
+ * 파일을 복제해 저장소에 올리는 게 아니라 유튜브 자체 CDN(i.ytimg.com)을
+ * 그대로 가리키는 링크라, 이 이미지는 매번 유튜브에서 직접 불러온다.
+ */
+export function youtubeThumbnailUrl(videoId) {
+    return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+}
+/**
+ * X(트위터) 프로필 사진 미리보기 — unavatar.io(공개 아바타 프록시 서비스)를
+ * 통해 현재 프로필 사진을 실시간으로 가져온다. 이미지를 우리 쪽에 저장하지
+ *않고, 매번 그 시점의 실제 프로필 사진을 프록시로 보여주는 방식이다.
+ */
+export function twitterAvatarUrl(handle) {
+    return `https://unavatar.io/twitter/${encodeURIComponent(handle)}`;
+}
 /** 카드 id를 기반으로 결정론적으로 아트 하나를 골라 data URI로 반환한다. */
 export function cardArtDataUri(cardId, color) {
     const h = hashString(cardId);

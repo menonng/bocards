@@ -10,16 +10,27 @@ import { SongCardDef } from "../types.js";
 //
 //   DECO*27: モザイクロール / ゴーストルール / ヒバナ
 //   하치(米津玄師): マトリョシカ / 砂の惑星 / ドーナツホール
-//   wowaka: 裏表ラバーズ / ローリンガール / ワールズエンド・ダンスホール / アンハッピーリフレイン
+//   wowaka: 裏表ラバーズ / ローリンガール / ワールズエンド・ダンスホール / アンハッピーリフレイン / アンノウン・マザーグース
 //   이요와: きゅうくらりん (2025-04-06)
 //   (게스트, P카드 없음) ika: みくみくにしてあげる♪【してやんよ】(사상 최초, 2012)
 //   ryo(supercell): メルト / ワールドイズマイン
 //   黒うさP: 千本桜 / cosMo@暴走P: 初音ミクの消失 -DEAD END-
-//   kemu: 六兆年と一夜物語 / 40mP: アンノウン・マザーグース
+//   kemu: 六兆年と一夜物語 / DECO*27: アンドロイドガール
 //   Rerulili: 脳漿炸裂ガール / 164: 天ノ弱 / イロハ(sasaki): 炉心融解
 //   doriko: ロミオとシンデレラ / mikitoP: ロキ / カイリキベア: ベノム
 //   Neru: ロストワンの号哭 / サツキ: メズマライザー (2026-01-25)
 //   Tak(2024년 데뷔) / 50mang 은 신화입성곡 없음(2026-08 기준 확인).
+//
+// 정정 이력: 초기 데이터에서 「アンドロイドガール」을 wowaka 곡으로, 「アンノウン・
+// マザーグース」를 40mP 곡으로 잘못 표기했었다 — 조사 결과 각각 DECO*27,
+// wowaka의 곡임을 확인해 producerId를 수정했다. 또한 "이요와 - 強がりダンス"는
+// 실존하지 않는 곡으로 확인되어 실제 곡인 「黄金数」로 교체했다.
+//
+// youtubeId는 각 곡의 공식(또는 공식으로 확인 가능한) YouTube 업로드 영상
+// ID다. 카드 아트는 이 영상의 썸네일(`i.ytimg.com` 자체 CDN)을 그대로
+// 가리키는 링크이며, 파일을 직접 복제해 저장소에 올리지 않는다 — 툴팁에
+// "출처: YouTube" 표기가 함께 뜬다. 확인하지 못한 일부 곡(사상 최초곡 등,
+// 3곡)은 기존의 오리지널 SVG 아트를 그대로 사용한다.
 //
 // youtube100M: true 는 니코니코 신화입성과 별개로 유튜브 누적 1억 회
 // 재생을 달성한 곡 표시다(위 신화입성곡 중에도 겹치는 경우가 있다).
@@ -35,10 +46,10 @@ export const SONG_CARDS: SongCardDef[] = [
   // ── DECO*27 ──────────────────────────────────────────────
   {
     id: "deco27-mosaic-roll",
+    youtubeId: "DnLFVUi3oOU",
     nameKo: "모자이크 롤",
     nameOriginal: "モザイクロール",
     producerId: "deco27",
-    cost: 6,
     type: "vocal",
     rarity: "legendary",
     isMyth: true,
@@ -48,10 +59,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "deco27-ghost-rule",
+    youtubeId: "KushW6zvazM",
     nameKo: "고스트 룰",
     nameOriginal: "ゴーストルール",
     producerId: "deco27",
-    cost: 5,
     type: "support",
     rarity: "legendary",
     isMyth: true,
@@ -65,10 +76,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "deco27-vampire",
+    youtubeId: "e1xCOsgWG0M",
     nameKo: "뱀파이어",
     nameOriginal: "ヴァンパイア",
     producerId: "deco27",
-    cost: 4,
     type: "vocal",
     rarity: "rare",
     isMyth: false,
@@ -77,10 +88,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "deco27-mousou",
+    youtubeId: "8pGRdRhjX3o",
     nameKo: "망상감상대상연맹",
     nameOriginal: "妄想感傷代償連盟",
     producerId: "deco27",
-    cost: 3,
     type: "support",
     rarity: "rare",
     isMyth: false,
@@ -89,10 +100,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "deco27-rabbit-hole",
+    youtubeId: "eSW2LVbPThw",
     nameKo: "래빗 홀",
     nameOriginal: "ラビットホール",
     producerId: "deco27",
-    cost: 2,
     type: "chorus",
     rarity: "common",
     isMyth: false,
@@ -103,10 +114,10 @@ export const SONG_CARDS: SongCardDef[] = [
   // ── 하치 (Hachi) ─────────────────────────────────────────
   {
     id: "hachi-matryoshka",
+    youtubeId: "HOz-9FzIDf0",
     nameKo: "마트료시카",
     nameOriginal: "マトリョシカ",
     producerId: "hachi",
-    cost: 5,
     type: "story",
     rarity: "legendary",
     isMyth: true,
@@ -120,10 +131,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "hachi-sand-planet",
+    youtubeId: "AS4q9yaWJkI",
     nameKo: "모래의 행성",
     nameOriginal: "砂の惑星",
     producerId: "hachi",
-    cost: 6,
     type: "vocal",
     rarity: "legendary",
     isMyth: true,
@@ -133,10 +144,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "hachi-donut-hole",
+    youtubeId: "qnX2CdOBcDI",
     nameKo: "도넛 홀",
     nameOriginal: "ドーナツホール",
     producerId: "hachi",
-    cost: 4,
     type: "support",
     rarity: "legendary",
     isMyth: true,
@@ -146,10 +157,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "hachi-panda-hero",
+    youtubeId: "0RU_05zpETo",
     nameKo: "판다 히어로",
     nameOriginal: "パンダヒーロー",
     producerId: "hachi",
-    cost: 3,
     type: "vocal",
     rarity: "rare",
     isMyth: false,
@@ -158,10 +169,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "hachi-gogo-yureisen",
+    youtubeId: "2PqxOytUjz0",
     nameKo: "고고 유령선",
     nameOriginal: "ゴーゴー幽霊船",
     producerId: "hachi",
-    cost: 2,
     type: "story",
     rarity: "common",
     isMyth: false,
@@ -176,10 +187,10 @@ export const SONG_CARDS: SongCardDef[] = [
   // ── wowaka ───────────────────────────────────────────────
   {
     id: "wowaka-uraomote-lovers",
+    youtubeId: "b_cuMcDWwsI",
     nameKo: "표리 러버즈",
     nameOriginal: "裏表ラバーズ",
     producerId: "wowaka",
-    cost: 5,
     type: "vocal",
     rarity: "legendary",
     isMyth: true,
@@ -189,10 +200,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "wowaka-rolling-girl",
+    youtubeId: "vnw8zURAxkU",
     nameKo: "롤링 걸",
     nameOriginal: "ローリンガール",
     producerId: "wowaka",
-    cost: 4,
     type: "support", // 아이템 카드로 분류 — 다른 아이템과 달리 재사용 가능
     rarity: "legendary",
     isMyth: true,
@@ -206,23 +217,23 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "wowaka-worlds-end-dancehall",
+    youtubeId: "ZB75e7vzX0I",
     nameKo: "월즈 엔드 댄스홀",
     nameOriginal: "ワールズエンド・ダンスホール",
     producerId: "wowaka",
-    cost: 3,
     type: "support",
     rarity: "legendary",
     isMyth: true,
     mythDate: "2019-04-17",
-    effect: { kind: "gainPPNow", amount: 2 },
+    effect: { kind: "gainExtraMainPlay", amount: 1 },
     flavor: "세상이 끝나는 날까지, 춤출 힘을 끌어올린다.",
   },
   {
     id: "wowaka-unhappy-refrain",
+    youtubeId: "uMlv9VWAxko",
     nameKo: "언해피 리프레인",
     nameOriginal: "アンハッピーリフレイン",
     producerId: "wowaka",
-    cost: 2,
     type: "chorus",
     rarity: "legendary",
     isMyth: true,
@@ -231,11 +242,11 @@ export const SONG_CARDS: SongCardDef[] = [
     flavor: "되풀이되는 불행한 후렴 속에서도, 다음 소절을 집어 든다.",
   },
   {
-    id: "wowaka-android-girl",
+    id: "deco27-android-girl",
+    youtubeId: "uFRPeiAEO0M",
     nameKo: "안드로이드 걸",
     nameOriginal: "アンドロイドガール",
-    producerId: "wowaka",
-    cost: 2,
+    producerId: "deco27", // 정정: wowaka 곡이 아니라 DECO*27 곡 (조사로 확인)
     type: "vocal",
     rarity: "rare",
     isMyth: false,
@@ -246,10 +257,10 @@ export const SONG_CARDS: SongCardDef[] = [
   // ── 이요와 (Iyowa) ───────────────────────────────────────
   {
     id: "iyowa-kyuukurarin",
+    youtubeId: "2b1IexhKPz4",
     nameKo: "큐우쿠라린",
     nameOriginal: "きゅうくらりん",
     producerId: "iyowa",
-    cost: 3,
     type: "support",
     rarity: "legendary",
     isMyth: true,
@@ -260,10 +271,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "iyowa-sennen-ikiteru",
+    youtubeId: "3em-J9yYPAo",
     nameKo: "천년을 살고 있어",
     nameOriginal: "千年生きてる",
     producerId: "iyowa",
-    cost: 4,
     type: "vocal",
     rarity: "rare",
     isMyth: false,
@@ -271,23 +282,23 @@ export const SONG_CARDS: SongCardDef[] = [
     flavor: "천 년을 산 것처럼 쌓인 감정이 다음 이야기를 끌어온다.",
   },
   {
-    id: "iyowa-tsuyogari-dance",
-    nameKo: "강한 척 댄스",
-    nameOriginal: "強がりダンス",
+    id: "iyowa-ougonsuu",
+    youtubeId: "_YpcTBm15QU",
+    nameKo: "황금수",
+    nameOriginal: "黄金数",
     producerId: "iyowa",
-    cost: 3,
     type: "vocal",
     rarity: "rare",
     isMyth: false,
     effect: { kind: "damageThenHealSelf", amount: 3, heal: 1 },
-    flavor: "괜찮은 척 추는 춤이 상대에게도, 자신에게도 조금씩 닿는다.",
+    flavor: "가장 아름다운 비율을 찾듯, 상대에게도 자신에게도 균형 있게 닿는다.",
   },
   {
     id: "iyowa-netsu-ijou",
+    youtubeId: "b2NTglk9tvI",
     nameKo: "열이상",
     nameOriginal: "熱異常",
     producerId: "iyowa",
-    cost: 1,
     type: "chorus",
     rarity: "common",
     isMyth: false,
@@ -299,14 +310,13 @@ export const SONG_CARDS: SongCardDef[] = [
     nameKo: "종말의 날씨",
     nameOriginal: "終末のお天気",
     producerId: "iyowa",
-    cost: 2,
     type: "story",
     rarity: "common",
     isMyth: false,
     effect: {
       kind: "installStoryTick",
       duration: 2,
-      tick: { kind: "gainPPThisTurn", amount: 1 },
+      tick: { kind: "drawCard", amount: 1 },
     },
     flavor: "이요와의 데뷔곡 — 세상이 끝나도 날씨는 계속 바뀐다.",
   },
@@ -314,10 +324,10 @@ export const SONG_CARDS: SongCardDef[] = [
   // ── Tak ──────────────────────────────────────────────────
   {
     id: "tak-mochimochi",
+    youtubeId: "tQM8pfwmcU0",
     nameKo: "모찌모찌",
     nameOriginal: "mochimochi",
     producerId: "tak",
-    cost: 1,
     type: "vocal",
     rarity: "common",
     isMyth: false,
@@ -326,10 +336,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "tak-lemon-melon-cookie",
+    youtubeId: "5l8VZEyNRH8",
     nameKo: "레몬 멜론 쿠키",
     nameOriginal: "LEMON MELON COOKIE",
     producerId: "tak",
-    cost: 3,
     type: "vocal",
     rarity: "rare",
     isMyth: false,
@@ -338,10 +348,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "tak-kodoku-psycho",
+    youtubeId: "xdNIO7WudEw",
     nameKo: "고독 사이코",
     nameOriginal: "孤独サイコ",
     producerId: "tak",
-    cost: 2,
     type: "support",
     rarity: "rare",
     isMyth: false,
@@ -350,10 +360,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "tak-pppp",
+    youtubeId: "8Cm-7oCq9HA",
     nameKo: "PPPP",
     nameOriginal: "PPPP",
     producerId: "tak",
-    cost: 4,
     type: "vocal",
     rarity: "rare",
     isMyth: false,
@@ -362,10 +372,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "tak-mtmtm",
+    youtubeId: "pIuQ_us5W4Y",
     nameKo: "MTMTM",
     nameOriginal: "MTMTM",
     producerId: "tak",
-    cost: 1,
     type: "chorus",
     rarity: "common",
     isMyth: false,
@@ -376,10 +386,10 @@ export const SONG_CARDS: SongCardDef[] = [
   // ── 50mang ───────────────────────────────────────────────
   {
     id: "mang50-jangsanbeom",
+    youtubeId: "mhbQDnRFyEg",
     nameKo: "장산범",
     nameOriginal: "장산범",
     producerId: "mang50",
-    cost: 4,
     type: "vocal",
     rarity: "rare",
     isMyth: false,
@@ -388,10 +398,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "mang50-salieri",
+    youtubeId: "ATXaUKnRKYk",
     nameKo: "살리에리",
     nameOriginal: "살리에리",
     producerId: "mang50",
-    cost: 3,
     type: "support",
     rarity: "rare",
     isMyth: false,
@@ -400,10 +410,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "mang50-byeolbit-serenade",
+    youtubeId: "XDPG_TwSpZs",
     nameKo: "별빛 세레나데",
     nameOriginal: "별빛 세레나데",
     producerId: "mang50",
-    cost: 2,
     type: "support",
     rarity: "common",
     isMyth: false,
@@ -412,14 +422,14 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "mang50-yunhoe",
+    youtubeId: "-iG68kV_R0o",
     nameKo: "윤회",
     nameOriginal: "윤회",
     producerId: "mang50",
-    cost: 2,
     type: "story",
     rarity: "common",
     isMyth: false,
-    effect: { kind: "installReviveOnceOnDeath", maxCost: 2 },
+    effect: { kind: "installReviveOnceOnDeath" },
     flavor: "돌고 도는 삶처럼, 한 번은 죽음에서 되돌아올 기회를 남긴다.",
   },
   {
@@ -427,7 +437,6 @@ export const SONG_CARDS: SongCardDef[] = [
     nameKo: "메데이아",
     nameOriginal: "메데이아",
     producerId: "mang50",
-    cost: 2,
     type: "vocal",
     rarity: "common",
     isMyth: false,
@@ -442,7 +451,6 @@ export const SONG_CARDS: SongCardDef[] = [
     nameKo: "미쿠미쿠하게 해줄게",
     nameOriginal: "みくみくにしてあげる♪【してやんよ】",
     producerId: "ika",
-    cost: 6,
     type: "support",
     rarity: "legendary",
     isMyth: true,
@@ -452,10 +460,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "ryo-melt",
+    youtubeId: "XRymkHlMB-k",
     nameKo: "멜트",
     nameOriginal: "メルト",
     producerId: "ryo",
-    cost: 3,
     type: "support",
     rarity: "legendary",
     isMyth: true,
@@ -466,10 +474,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "kurousa-senbonzakura",
+    youtubeId: "H27hOFa8qJY",
     nameKo: "천본앵",
     nameOriginal: "千本桜",
     producerId: "kurousa",
-    cost: 7,
     type: "vocal",
     rarity: "legendary",
     isMyth: true,
@@ -479,10 +487,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "cosmo-miku-shoushitsu",
+    youtubeId: "VWVtIg5cdDU",
     nameKo: "하츠네 미쿠의 소실",
     nameOriginal: "初音ミクの消失 -DEAD END-",
     producerId: "cosmo",
-    cost: 6,
     type: "vocal",
     rarity: "legendary",
     isMyth: true,
@@ -492,10 +500,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "kemu-rokuchounen",
+    youtubeId: "Om3MTou2kPg",
     nameKo: "육조년과 하룻밤 이야기",
     nameOriginal: "六兆年と一夜物語",
     producerId: "kemu",
-    cost: 3,
     type: "chorus",
     rarity: "legendary",
     isMyth: true,
@@ -505,10 +513,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "ryo-world-is-mine",
+    youtubeId: "jhl5afLEKdo",
     nameKo: "월드 이즈 마인",
     nameOriginal: "ワールドイズマイン",
     producerId: "ryo",
-    cost: 2,
     type: "support",
     rarity: "legendary",
     isMyth: true,
@@ -517,11 +525,11 @@ export const SONG_CARDS: SongCardDef[] = [
     flavor: "세상에서 제일가는 공주님은, 상대의 다음 차례마저 자기 뜻대로 만든다.",
   },
   {
-    id: "40mp-unknown-mothergoose",
+    id: "wowaka-unknown-mothergoose",
+    youtubeId: "P_CSdxSGfaA",
     nameKo: "언노운 마더구스",
     nameOriginal: "アンノウン・マザーグース",
-    producerId: "p40m",
-    cost: 3,
+    producerId: "wowaka", // 정정: 40mP 곡이 아니라 wowaka 곡 (조사로 확인)
     type: "story",
     rarity: "legendary",
     isMyth: true,
@@ -535,10 +543,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "rerulili-noushou-sakuretsu",
+    youtubeId: "Ey_NHZNYTeE",
     nameKo: "뇌장작렬 걸",
     nameOriginal: "脳漿炸裂ガール",
     producerId: "rerulili",
-    cost: 5,
     type: "vocal",
     rarity: "legendary",
     isMyth: true,
@@ -548,10 +556,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "p164-amanojaku",
+    youtubeId: "2-zPY0vrpjQ",
     nameKo: "아마노자쿠",
     nameOriginal: "天ノ弱",
     producerId: "p164",
-    cost: 3,
     type: "support",
     rarity: "legendary",
     isMyth: true,
@@ -561,10 +569,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "irohasasaki-roshin-yuukai",
+    youtubeId: "dSw8CucthGc",
     nameKo: "노심융해",
     nameOriginal: "炉心融解",
     producerId: "irohasasaki",
-    cost: 5,
     type: "vocal",
     rarity: "legendary",
     isMyth: true,
@@ -574,10 +582,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "doriko-romeo-cinderella",
+    youtubeId: "7lgfRjXUfP0",
     nameKo: "로미오와 신데렐라",
     nameOriginal: "ロミオとシンデレラ",
     producerId: "doriko",
-    cost: 4,
     type: "vocal",
     rarity: "legendary",
     isMyth: true,
@@ -587,10 +595,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "mikitop-roki",
+    youtubeId: "Xg-qfsKN2_E",
     nameKo: "로키",
     nameOriginal: "ロキ",
     producerId: "mikitop",
-    cost: 3,
     type: "support",
     rarity: "legendary",
     isMyth: true,
@@ -600,10 +608,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "deco27-hibana",
+    youtubeId: "hxSg2Ioz3LM",
     nameKo: "히바나",
     nameOriginal: "ヒバナ",
     producerId: "deco27",
-    cost: 5,
     type: "vocal",
     rarity: "legendary",
     isMyth: true,
@@ -613,10 +621,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "kairikibear-venom",
+    youtubeId: "oRJBwaZ59fQ",
     nameKo: "베놈",
     nameOriginal: "ベノム",
     producerId: "kairikibear",
-    cost: 4,
     type: "story",
     rarity: "legendary",
     isMyth: true,
@@ -630,30 +638,29 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "neru-lostone",
+    youtubeId: "8oBV3jPTW4s",
     nameKo: "로스트 원의 호곡",
     nameOriginal: "ロストワンの号哭",
     producerId: "neru",
-    cost: 4,
     type: "vocal",
     rarity: "legendary",
     isMyth: true,
     mythDate: "2024-12-23",
     effect: { kind: "damage", amount: 4 },
-    costRule: { kind: "reduceIfHandLow", threshold: 1, reduction: 1 },
     flavor: "홀로 남겨진 자의 절규는, 손에 쥔 게 적을수록 더 날카롭게 터진다.",
   },
   {
     id: "satsuki-mesmerizer",
+    youtubeId: "19y8YTbvri8",
     nameKo: "메즈마라이저",
     nameOriginal: "メズマライザー",
     producerId: "satsuki",
-    cost: 2,
     type: "support",
     rarity: "legendary",
     isMyth: true,
     mythDate: "2026-01-25",
     youtube100M: true,
-    effect: { kind: "gainPPNow", amount: 2 },
+    effect: { kind: "gainExtraMainPlay", amount: 1 },
     flavor: "한 번 들으면 홀린다는 최면술사 — 유튜브 1억 회와 니코니코 신화입성을 모두 달성한 유일한 곡.",
   },
 
@@ -661,10 +668,10 @@ export const SONG_CARDS: SongCardDef[] = [
 
   {
     id: "yukopi-kyoufuu-allback",
+    youtubeId: "D6DVTLvOupE",
     nameKo: "강풍 올백",
     nameOriginal: "強風オールバック",
     producerId: "yukopi",
-    cost: 1,
     type: "chorus",
     rarity: "rare",
     isMyth: false,
@@ -674,10 +681,10 @@ export const SONG_CARDS: SongCardDef[] = [
   },
   {
     id: "kikuo-aishite",
+    youtubeId: "NTrm_idbhUk",
     nameKo: "사랑해 사랑해 사랑해",
     nameOriginal: "愛して愛して愛して",
     producerId: "kikuo",
-    cost: 3,
     type: "support",
     rarity: "rare",
     isMyth: false,

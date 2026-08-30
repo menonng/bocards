@@ -52,10 +52,11 @@ export function chooseAiAction(state, aiIndex) {
         const pick = buffOrDebuff ?? nonVocal[0];
         return { type: "PLAY_CARD", playerIndex: aiIndex, instanceId: pick.card.instanceId };
     }
-    // 4) 남은 공격 카드 중 가장 비용이 높은(대체로 강력한) 것을 낸다 (공격은 턴 종료로 이어짐)
+    // 4) 낼 수 있는 공격 카드가 있으면 낸다 (자원 개념이 없으므로 아무거나 내도
+    //    손해가 없다 — 다만 공격은 그 즉시 턴을 끝내므로 딱 1장만 낸다)
     if (vocalOptions.length > 0) {
-        const best = vocalOptions.reduce((a, b) => (b.def.cost > a.def.cost ? b : a));
-        return { type: "PLAY_CARD", playerIndex: aiIndex, instanceId: best.card.instanceId };
+        const pick = vocalOptions[Math.floor(Math.random() * vocalOptions.length)];
+        return { type: "PLAY_CARD", playerIndex: aiIndex, instanceId: pick.card.instanceId };
     }
     // 5) 더 낼 카드가 없으면 턴 종료
     return { type: "END_TURN", playerIndex: aiIndex };

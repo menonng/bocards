@@ -30,14 +30,13 @@ export function getActiveModifiers(state) {
         allSupportEffectBonus: 0,
         allVocalDamageBonus: 0,
         startPopularityDelta: 0,
-        ppMaxDelta: 0,
         storyDurationDelta: 0,
         turnLimitDelta: 0,
         extraCardPlayPerTurn: 0,
         handLimitDelta: 0,
         extraDrawPerTurn: 0,
         endOfTurnRandomDiscard: 0,
-        graveyardReviveOnTurnStartMaxCost: 0,
+        graveyardReviveOnTurnStart: 0,
     };
     for (const id of state.activeStageCardIds) {
         const mods = getStageDef(id).modifiers;
@@ -131,7 +130,6 @@ function makeDeck(rng, ownerTag, ratio) {
     return shuffle(instances, rng);
 }
 // ── 상태 생성 ────────────────────────────────────────────────
-const BASE_PP_MAX = 10;
 const BASE_HAND_LIMIT = 7;
 const BASE_START_POPULARITY = 20;
 const BASE_CHART_TURN_LIMIT = 20;
@@ -140,8 +138,6 @@ function createPlayer(name, deck) {
     return {
         name,
         popularity: BASE_START_POPULARITY,
-        pp: 0,
-        ppMax: BASE_PP_MAX,
         handLimit: BASE_HAND_LIMIT,
         hand: [],
         deck,
@@ -152,6 +148,7 @@ function createPlayer(name, deck) {
         nextVocalDamageBonus: 0,
         pendingSelfDamageOnTurnEnd: 0,
         negateNextSupportOrStory: false,
+        reusableCardsPlayedThisTurn: [],
     };
 }
 function drawOne(player) {
@@ -203,7 +200,7 @@ export function startGame(action) {
     state = updatePlayer(state, 0, (p) => drawN(p, OPENING_HAND_SIZE));
     state = updatePlayer(state, 1, (p) => drawN(p, OPENING_HAND_SIZE));
     state = { ...state, log: [...state.log, describeStage(state)] };
-    return runIntroThroughCharge(state);
+    return runIntroAndDraw(state);
 }
 function describeStage(state) {
     const names = state.activeStageCardIds
@@ -215,7 +212,6 @@ function applyStartOfGameModifiers(player, mods) {
     return {
         ...player,
         popularity: Math.max(1, BASE_START_POPULARITY + mods.startPopularityDelta),
-        ppMax: Math.max(1, BASE_PP_MAX + mods.ppMaxDelta),
         handLimit: Math.max(1, BASE_HAND_LIMIT + mods.handLimitDelta),
     };
 }
@@ -230,8 +226,8 @@ function otherIndex(i) {
 function withLog(state, line) {
     return { ...state, log: [...state.log, line] };
 }
-// ── 턴 시작 처리: 인트로(스토리 틱 + 50mang 부활) → 드로우 → 차지 ──
-function runIntroThroughCharge(state) {
+// ── 턴 시작 처리: 인트로(효과 틱 + 50mang 부활) → 드로우 → 메인 준비 ──
+function runIntroAndDraw(state) {
     const active = state.activePlayerIndex;
     const mods = getActiveModifiers(state);
     let s = state;
@@ -257,15 +253,13 @@ function runIntroThroughCharge(state) {
     if (totalStoryDamageToOpponent > 0) {
         s = dealDamage(s, otherIndex(active), totalStoryDamageToOpponent, "story");
     }
-    // 2) 50mang 무대: 무덤 부활 체크
-    if (mods.graveyardReviveOnTurnStartMaxCost > 0) {
+    // 2) 50mang 무대: 무덤 부활 체크 (조건 없이 무덤의 카드 1장을 되돌린다)
+    if (mods.graveyardReviveOnTurnStart > 0) {
         s = updatePlayer(s, active, (p) => {
-            const idx = p.graveyard.findIndex((c) => getSongDef(c.defId).cost <= mods.graveyardReviveOnTurnStartMaxCost);
-            if (idx === -1)
+            if (p.graveyard.length === 0)
                 return p;
-            const card = p.graveyard[idx];
-            const graveyard = [...p.graveyard.slice(0, idx), ...p.graveyard.slice(idx + 1)];
-            return { ...p, graveyard, hand: [...p.hand, card] };
+            const [card, ...rest] = p.graveyard;
+            return { ...p, graveyard: rest, hand: [...p.hand, card] };
         });
     }
     // 3) 장산범: 무덤에서 부활 대기 중인 카드 회수
@@ -291,15 +285,15 @@ function runIntroThroughCharge(state) {
     // 4) 드로우 (기본 1장 + 이요와 무대 보너스)
     const drawAmount = 1 + mods.extraDrawPerTurn;
     s = updatePlayer(s, active, (p) => drawN(p, drawAmount));
-    // 5) 차지: 재생 포인트 +1
-    // (nextVocalDamageBonus는 여기서 초기화하지 않는다 — 서포트 카드로 예약해둔
-    //  버프/디버프는 "다음 보컬 카드를 낼 때"까지 턴을 넘어서도 유지되어야
-    //  1턴 1발동 기본 룰에서도 실제로 의미가 있다. 소모는 보컬 카드 발동 시 처리한다.)
+    // 5) 메인 발동 횟수 초기화 (자원 시스템 없이, 이 횟수가 유일한 턴당 제약이다)
+    // (nextVocalDamageBonus는 여기서 초기화하지 않는다 — 아이템 카드로 예약해둔
+    //  버프/디버프는 "다음 공격 카드를 낼 때"까지 턴을 넘어서도 유지되어야
+    //  1턴 1발동 기본 룰에서도 실제로 의미가 있다. 소모는 공격 카드 발동 시 처리한다.)
     s = updatePlayer(s, active, (p) => ({
         ...p,
-        pp: Math.min(p.ppMax, p.pp + 1),
         mainPlaysRemaining: 1 + mods.extraCardPlayPerTurn,
         playedSongThisTurn: false,
+        reusableCardsPlayedThisTurn: [],
     }));
     return { ...s, phase: "main" };
 }
@@ -307,10 +301,6 @@ function applyStoryTick(tick, player) {
     switch (tick.kind) {
         case "drawCard":
             return { player: drawN(player, tick.amount) };
-        case "gainPPThisTurn":
-            return {
-                player: { ...player, pp: Math.min(player.ppMax, player.pp + tick.amount) },
-            };
         case "damageOpponent":
             return { player, opponentDamage: tick.amount };
     }
@@ -351,16 +341,9 @@ function finalizeIfGameOver(state) {
     return state;
 }
 // ── 카드 발동 ────────────────────────────────────────────────
-function computeCost(def, player) {
-    let cost = def.cost;
-    if (def.costRule?.kind === "reduceIfHandLow") {
-        // 발동 전 손패 기준(자기 자신 포함) 이므로, 자기 자신을 뺀 나머지 곡카드 수로 판단
-        const remaining = player.hand.length - 1;
-        if (remaining <= def.costRule.threshold)
-            cost -= def.costRule.reduction;
-    }
-    return Math.max(0, cost);
-}
+// 재생 포인트 같은 자원 개념은 없다 (유희왕처럼 완전 폐지). 턴당 낼 수 있는
+// 카드 수는 오직 mainPlaysRemaining(공격/효과-지속형 전용, 기본 1)으로만
+// 제한되고, 아이템/효과-반응형은 손패에 있는 한 몇 장이든 낼 수 있다.
 export function canPlayCard(state, playerIndex, instanceId) {
     if (state.phase === "gameover")
         return { ok: false, reason: "게임이 종료되었습니다." };
@@ -379,17 +362,18 @@ export function canPlayCard(state, playerIndex, instanceId) {
         if (playerIndex !== state.activePlayerIndex)
             return { ok: false, reason: "자신의 턴이 아닙니다." };
         // 메인 발동 횟수 제한은 공격(vocal)·효과-지속형(story)에만 적용된다.
-        // 아이템(support)·효과-반응형(chorus)은 재생 포인트만 허락하면 몇 장이든 낼 수 있다.
+        // 아이템(support)·효과-반응형(chorus)은 손패에 있는 한 몇 장이든 낼 수 있다.
         if ((def.type === "vocal" || def.type === "story") &&
             player.mainPlaysRemaining <= 0)
             return { ok: false, reason: "이번 턴에 낼 수 있는 공격/효과(지속형) 카드를 모두 소진했습니다." };
+        // 재사용 가능 카드(예: 롤링 걸)는 손으로 계속 돌아오므로, 무한정 반복
+        // 사용해 턴이 끝나지 않는 것을 막기 위해 턴당 1회로 제한한다.
+        if (def.reusable && player.reusableCardsPlayedThisTurn.includes(def.id))
+            return { ok: false, reason: "이 재사용 카드는 이번 턴에 이미 사용했습니다." };
     }
     else {
         return { ok: false, reason: "지금은 카드를 낼 수 없는 단계입니다." };
     }
-    const cost = computeCost(def, player);
-    if (player.pp < cost)
-        return { ok: false, reason: "재생 포인트가 부족합니다." };
     return { ok: true };
 }
 function playCard(state, playerIndex, instanceId) {
@@ -400,13 +384,11 @@ function playCard(state, playerIndex, instanceId) {
     const player = state.players[playerIndex];
     const inst = player.hand.find((c) => c.instanceId === instanceId);
     const def = getSongDef(inst.defId);
-    const cost = computeCost(def, player);
     const mods = getActiveModifiers(state);
     const synergy = hasStageSynergy(state, def.producerId) ? 1 : 0;
-    // 손패에서 제거 + 비용 지불
+    // 손패에서 제거
     let s = updatePlayer(state, playerIndex, (p) => ({
         ...p,
-        pp: p.pp - cost,
         hand: p.hand.filter((c) => c.instanceId !== instanceId),
     }));
     const isNegated = (def.type === "support" || def.type === "story") &&
@@ -422,17 +404,21 @@ function playCard(state, playerIndex, instanceId) {
     const goesToField = def.type === "story" && !isNegated;
     if (def.reusable && !goesToField) {
         // 재사용 가능 카드(예: 롤링 걸)는 무덤에 가지 않고 바로 손으로 돌아온다.
-        s = updatePlayer(s, playerIndex, (p) => ({ ...p, hand: [...p.hand, inst] }));
+        // (턴당 1회 제한 기록 — canPlayCard가 이를 보고 재사용을 막는다)
+        s = updatePlayer(s, playerIndex, (p) => ({
+            ...p,
+            hand: [...p.hand, inst],
+            reusableCardsPlayedThisTurn: [...p.reusableCardsPlayedThisTurn, def.id],
+        }));
     }
     else if (!goesToField) {
         let flags = inst.flags;
         if (def.effect.kind === "markReviveOnceInGraveyard" && !isNegated) {
             flags = { ...flags, revivePending: true };
         }
-        // 윤회: 이 플레이어에게 사용 대기 중인 부활 스토리가 있고, 방금 낸 카드가
-        // 그 조건(비용 이하)을 만족하면 무덤 대신 즉시 손으로 되돌아온다 (1회용 소모).
-        const reviveStoryIdx = s.players[playerIndex].fieldStories.findIndex((story) => story.reviveOnDeathAvailable &&
-            (story.reviveMaxCost ?? 0) >= def.cost);
+        // 윤회: 이 플레이어에게 사용 대기 중인 부활 스토리가 있으면, 방금 낸
+        // 카드가 무덤 대신 즉시 손으로 되돌아온다 (조건 없음, 1회용 소모).
+        const reviveStoryIdx = s.players[playerIndex].fieldStories.findIndex((story) => story.reviveOnDeathAvailable);
         if (reviveStoryIdx !== -1) {
             s = updatePlayer(s, playerIndex, (p) => ({
                 ...p,
@@ -462,7 +448,7 @@ function playCard(state, playerIndex, instanceId) {
             mainPlaysRemaining: Math.max(0, p.mainPlaysRemaining - 1),
         }));
     }
-    s = withLog(s, `${state.players[playerIndex].name}: [${def.nameKo}] 발동! (비용 ${cost})`);
+    s = withLog(s, `${state.players[playerIndex].name}: [${def.nameKo}] 발동!`);
     s = finalizeIfGameOver(s);
     // 유희왕/포켓몬 카드게임처럼, 보컬(공격) 카드를 발동하면 그 즉시 자신의
     // 턴이 끝난다 — 남은 메인 발동 횟수(예: wowaka 무대)가 있어도 마찬가지다.
@@ -560,11 +546,11 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
             }));
             break;
         }
-        case "gainPPNow": {
+        case "gainExtraMainPlay": {
             const amount = effect.amount + supportBonus;
             s = updatePlayer(s, actor, (p) => ({
                 ...p,
-                pp: Math.min(p.ppMax, p.pp + amount),
+                mainPlaysRemaining: p.mainPlaysRemaining + amount,
             }));
             break;
         }
@@ -627,7 +613,6 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
                 ownerIndex: actor,
                 remainingTurns: 999,
                 reviveOnDeathAvailable: true,
-                reviveMaxCost: effect.maxCost,
             };
             s = updatePlayer(s, actor, (p) => ({ ...p, fieldStories: [...p.fieldStories, story] }));
             break;
@@ -722,7 +707,7 @@ function finishTurn(state) {
         turnNumber: s.turnNumber + 1,
         phase: "intro",
     };
-    return runIntroThroughCharge(s);
+    return runIntroAndDraw(s);
 }
 function finalizePopularityComparison(state, reason) {
     const [p0, p1] = state.players;
