@@ -16,7 +16,7 @@ export function chooseAiAction(state, aiIndex) {
             return null; // AI 턴이면 반응 대상이 아님
         const player = state.players[aiIndex];
         const playable = player.hand.filter((c) => canPlayCard(state, aiIndex, c.instanceId).ok);
-        // 회복형 코러스는 인기도가 낮을 때, 드로우형은 절반 확률로 사용
+        // 회복형 코러스는 체력이 낮을 때, 드로우형은 절반 확률로 사용
         const heal = playable.find((c) => getSongDef(c.defId).effect.kind === "heal");
         if (heal && player.popularity <= 12) {
             return { type: "PLAY_CARD", playerIndex: aiIndex, instanceId: heal.instanceId };
@@ -32,13 +32,13 @@ export function chooseAiAction(state, aiIndex) {
     const opponent = state.players[otherOf(aiIndex)];
     const playableCards = player.hand.filter((c) => canPlayCard(state, aiIndex, c.instanceId).ok);
     const withDef = playableCards.map((c) => ({ card: c, def: getSongDef(c.defId) }));
-    // 1) 인기도가 낮고 회복 카드가 있으면 우선 회복
+    // 1) 체력이 낮고 회복 카드가 있으면 우선 회복
     if (player.popularity <= 10) {
         const heal = withDef.find((x) => x.def.effect.kind === "heal");
         if (heal)
             return { type: "PLAY_CARD", playerIndex: aiIndex, instanceId: heal.card.instanceId };
     }
-    // 2) 공격 카드를 낼 수 있고, 상대 인기도를 확실히 끝낼 수 있으면 최우선
+    // 2) 공격 카드를 낼 수 있고, 상대 체력을 확실히 끝낼 수 있으면 최우선
     const vocalOptions = withDef.filter((x) => x.def.type === "vocal");
     const lethal = vocalOptions.find((x) => x.def.effect.kind === "damage" && x.def.effect.amount >= opponent.popularity);
     if (lethal)

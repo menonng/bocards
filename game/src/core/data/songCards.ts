@@ -209,11 +209,11 @@ export const SONG_CARDS: SongCardDef[] = [
     isMyth: true,
     mythDate: "2023-02-04",
     releaseDate: "2010-02-14",
-    effect: { kind: "drawWithSelfDuplicateChance", amount: 2, duplicateChance: 0.5 },
+    effect: { kind: "drawWithSelfDuplicateChance", amount: 2, duplicateChance: 0.35 },
     reusable: true,
     flavor:
-      "굴러떨어지듯 반복되는 하루 — 뽑을 때마다 절반의 확률로 같은 하루(카드)가 되돌아온다. " +
-      "다른 아이템 카드와 달리 이 카드는 써도 사라지지 않는다.",
+      "굴러떨어지듯 반복되는 하루 — 뽑을 때마다 35% 확률로 같은 하루(카드)가 되돌아온다. " +
+      "운이 나쁘면 여기서 끝나고, 계속 우려먹다간 덱이 바닥나 스스로 무너질 수도 있다.",
   },
   {
     id: "wowaka-worlds-end-dancehall",

@@ -127,7 +127,7 @@ export interface FieldStory {
 
 export interface PlayerState {
   name: string;
-  /** 체력처럼 한눈에 보이는 유일한 자원 (구 "인기도"). 0이 되면 패배. */
+  /** 한눈에 보이는 유일한 스탯 "체력"(구 "인기도"). 0이 되면 패배. UI에는 항상 "체력"으로 표기한다. */
   popularity: number;
   handLimit: number;
   hand: CardInstance[];
@@ -140,14 +140,10 @@ export interface PlayerState {
   mainPlaysRemaining: number;
   /** 다음 보컬 카드에 적용될 데미지 보너스 (서포트 카드가 부여) */
   nextVocalDamageBonus: number;
-  /** 턴 종료 시 자신에게 들어올 인기도 감소 (고스트 룰 대가) */
+  /** 턴 종료 시 자신에게 들어올 체력 감소 (고스트 룰 대가) */
   pendingSelfDamageOnTurnEnd: number;
   /** 다음에 낼 서포트/스토리 카드 효과가 무효화되는지 (살리에리) */
   negateNextSupportOrStory: boolean;
-  /** 이번 턴에 이미 사용한 재사용 가능(reusable) 카드의 defId 목록.
-   *  자원 시스템이 없는 대신, 손으로 돌아오는 카드(롤링 걸 등)를 무한 반복
-   *  사용해 턴이 끝나지 않는 것을 막기 위해 "재사용 카드는 턴당 1회"로 제한한다. */
-  reusableCardsPlayedThisTurn: string[];
 }
 
 export type GamePhase =

@@ -148,19 +148,27 @@ function createPlayer(name, deck) {
         nextVocalDamageBonus: 0,
         pendingSelfDamageOnTurnEnd: 0,
         negateNextSupportOrStory: false,
-        reusableCardsPlayedThisTurn: [],
     };
 }
-function drawOne(player) {
-    if (player.deck.length === 0)
-        return player; // 덱 소진: 더 이상 드로우 없음(패널티 없음, MVP 단순화)
+// 덱이 빈 상태에서 드로우를 "시도"했는지 플레이어별로 기록한다. 실제 TCG의
+// "덱사"(드로우할 카드가 없으면 패배) 규칙을 구현하기 위한 신호로, reduce()
+// 진입 시 초기화하고 액션 처리가 끝난 뒤 한 번만 확인한다. 롤링 걸처럼 손으로
+// 돌아와 턴당 제한 없이 재사용 가능한 카드가 있기 때문에, "이번 턴에 이미
+// 곡 카드를 냈는지"가 아니라 "실제로 드로우가 실패했는지"를 기준으로 삼아야
+// 카드 자체에는 인위적인 사용 횟수 제한을 두지 않으면서도 무한 루프를 막을 수 있다.
+let deckOutFlags = [false, false];
+function drawOne(player, index) {
+    if (player.deck.length === 0) {
+        deckOutFlags[index] = true; // 덱사: 뽑을 카드가 없는데 드로우를 시도함
+        return player;
+    }
     const [card, ...rest] = player.deck;
     return { ...player, deck: rest, hand: [...player.hand, card] };
 }
-function drawN(player, n) {
+function drawN(player, n, index) {
     let p = player;
     for (let i = 0; i < n; i++)
-        p = drawOne(p);
+        p = drawOne(p, index);
     return p;
 }
 export function startGame(action) {
@@ -197,8 +205,8 @@ export function startGame(action) {
         ],
     };
     // 오프닝 핸드
-    state = updatePlayer(state, 0, (p) => drawN(p, OPENING_HAND_SIZE));
-    state = updatePlayer(state, 1, (p) => drawN(p, OPENING_HAND_SIZE));
+    state = updatePlayer(state, 0, (p) => drawN(p, OPENING_HAND_SIZE, 0));
+    state = updatePlayer(state, 1, (p) => drawN(p, OPENING_HAND_SIZE, 1));
     state = { ...state, log: [...state.log, describeStage(state)] };
     return runIntroAndDraw(state);
 }
@@ -239,7 +247,7 @@ function runIntroAndDraw(state) {
         const remainingStories = [];
         for (const story of player.fieldStories) {
             if (story.tick) {
-                const result = applyStoryTick(story.tick, player);
+                const result = applyStoryTick(story.tick, player, active);
                 player = result.player;
                 if (result.opponentDamage)
                     totalStoryDamageToOpponent += result.opponentDamage;
@@ -277,14 +285,14 @@ function runIntroAndDraw(state) {
     });
     if (checkGameOver(s))
         return s;
-    // 덱 소진: 더 낼 곡이 없으면 그 자리에서 인기도 비교로 승부를 가른다
+    // 덱 소진: 더 낼 곡이 없으면 그 자리에서 체력 비교로 승부를 가른다
     // (MVP 단순화 — 실제 TCG의 "드로우 실패 시 패배" 규칙 대신, 무승부 스톨을 막기 위한 최소한의 종료 조건)
     if (s.players[active].deck.length === 0) {
         return finalizePopularityComparison(s, "모든 곡을 다 썼습니다 (덱 소진)");
     }
     // 4) 드로우 (기본 1장 + 이요와 무대 보너스)
     const drawAmount = 1 + mods.extraDrawPerTurn;
-    s = updatePlayer(s, active, (p) => drawN(p, drawAmount));
+    s = updatePlayer(s, active, (p) => drawN(p, drawAmount, active));
     // 5) 메인 발동 횟수 초기화 (자원 시스템 없이, 이 횟수가 유일한 턴당 제약이다)
     // (nextVocalDamageBonus는 여기서 초기화하지 않는다 — 아이템 카드로 예약해둔
     //  버프/디버프는 "다음 공격 카드를 낼 때"까지 턴을 넘어서도 유지되어야
@@ -293,14 +301,13 @@ function runIntroAndDraw(state) {
         ...p,
         mainPlaysRemaining: 1 + mods.extraCardPlayPerTurn,
         playedSongThisTurn: false,
-        reusableCardsPlayedThisTurn: [],
     }));
     return { ...s, phase: "main" };
 }
-function applyStoryTick(tick, player) {
+function applyStoryTick(tick, player, index) {
     switch (tick.kind) {
         case "drawCard":
-            return { player: drawN(player, tick.amount) };
+            return { player: drawN(player, tick.amount, index) };
         case "damageOpponent":
             return { player, opponentDamage: tick.amount };
     }
@@ -314,12 +321,12 @@ function dealDamage(state, targetIndex, amount, source) {
         ...p,
         popularity: Math.max(0, p.popularity - total),
     }));
-    s = withLog(s, `${state.players[targetIndex].name}의 인기도가 ${total} 감소했습니다. (남은: ${s.players[targetIndex].popularity})`);
+    s = withLog(s, `${state.players[targetIndex].name}의 체력이 ${total} 감소했습니다. (남은: ${s.players[targetIndex].popularity})`);
     return finalizeIfGameOver(s);
 }
 function healPlayer(state, index, amount) {
     let s = updatePlayer(state, index, (p) => ({ ...p, popularity: p.popularity + amount }));
-    s = withLog(s, `${state.players[index].name}의 인기도가 ${amount} 회복했습니다.`);
+    s = withLog(s, `${state.players[index].name}의 체력이 ${amount} 회복했습니다.`);
     return s;
 }
 function checkGameOver(state) {
@@ -366,10 +373,8 @@ export function canPlayCard(state, playerIndex, instanceId) {
         if ((def.type === "vocal" || def.type === "story") &&
             player.mainPlaysRemaining <= 0)
             return { ok: false, reason: "이번 턴에 낼 수 있는 공격/효과(지속형) 카드를 모두 소진했습니다." };
-        // 재사용 가능 카드(예: 롤링 걸)는 손으로 계속 돌아오므로, 무한정 반복
-        // 사용해 턴이 끝나지 않는 것을 막기 위해 턴당 1회로 제한한다.
-        if (def.reusable && player.reusableCardsPlayedThisTurn.includes(def.id))
-            return { ok: false, reason: "이 재사용 카드는 이번 턴에 이미 사용했습니다." };
+        // 재사용 가능 카드(예: 롤링 걸)는 턴당 횟수 제한을 두지 않는다 — 대신
+        // 확률(드로우 실패)과 덱 소진 위험으로 스스로 브레이크가 걸리도록 설계되어 있다.
     }
     else {
         return { ok: false, reason: "지금은 카드를 낼 수 없는 단계입니다." };
@@ -404,12 +409,7 @@ function playCard(state, playerIndex, instanceId) {
     const goesToField = def.type === "story" && !isNegated;
     if (def.reusable && !goesToField) {
         // 재사용 가능 카드(예: 롤링 걸)는 무덤에 가지 않고 바로 손으로 돌아온다.
-        // (턴당 1회 제한 기록 — canPlayCard가 이를 보고 재사용을 막는다)
-        s = updatePlayer(s, playerIndex, (p) => ({
-            ...p,
-            hand: [...p.hand, inst],
-            reusableCardsPlayedThisTurn: [...p.reusableCardsPlayedThisTurn, def.id],
-        }));
+        s = updatePlayer(s, playerIndex, (p) => ({ ...p, hand: [...p.hand, inst] }));
     }
     else if (!goesToField) {
         let flags = inst.flags;
@@ -505,7 +505,7 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
             s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
             s = dealDamage(s, target, total, "vocal");
             if (opponentDraw > 0) {
-                s = updatePlayer(s, target, (p) => drawN(p, opponentDraw));
+                s = updatePlayer(s, target, (p) => drawN(p, opponentDraw, target));
             }
             break;
         }
@@ -521,7 +521,7 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
             const drawAmount = effect.draw;
             s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
             s = dealDamage(s, target, total, "vocal");
-            s = updatePlayer(s, actor, (p) => drawN(p, drawAmount));
+            s = updatePlayer(s, actor, (p) => drawN(p, drawAmount, actor));
             break;
         }
         case "heal": {
@@ -556,7 +556,7 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
         }
         case "draw": {
             const amount = effect.amount;
-            s = updatePlayer(s, actor, (p) => drawN(p, amount));
+            s = updatePlayer(s, actor, (p) => drawN(p, amount, actor));
             break;
         }
         case "drawWithSelfDuplicateChance": {
@@ -576,7 +576,7 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
                         player = { ...player, hand: [...player.hand, dup] };
                     }
                     else {
-                        player = drawOne(player);
+                        player = drawOne(player, actor);
                     }
                 }
                 return player;
@@ -586,7 +586,7 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
         case "drawThenDiscardRandom": {
             const drawAmount = effect.draw;
             const discardAmount = effect.discard;
-            s = updatePlayer(s, actor, (p) => drawN(p, drawAmount));
+            s = updatePlayer(s, actor, (p) => drawN(p, drawAmount, actor));
             s = updatePlayer(s, actor, (p) => randomDiscard(p, discardAmount));
             break;
         }
@@ -679,7 +679,7 @@ function finishTurn(state) {
     const active = state.activePlayerIndex;
     const mods = getActiveModifiers(state);
     let s = state;
-    // 고스트 룰 등으로 예약된 자기 인기도 감소 적용
+    // 고스트 룰 등으로 예약된 자기 체력 감소 적용
     const pending = s.players[active].pendingSelfDamageOnTurnEnd;
     if (pending > 0) {
         s = updatePlayer(s, active, (p) => ({ ...p, pendingSelfDamageOnTurnEnd: 0 }));
@@ -717,8 +717,8 @@ function finalizePopularityComparison(state, reason) {
     else if (p1.popularity > p0.popularity)
         winnerIndex = 1;
     const msg = winnerIndex === "draw"
-        ? `${reason} — 무승부! (인기도 ${p0.popularity} : ${p1.popularity})`
-        : `${reason} — ${state.players[winnerIndex].name} 승리! (인기도 ${p0.popularity} : ${p1.popularity})`;
+        ? `${reason} — 무승부! (체력 ${p0.popularity} : ${p1.popularity})`
+        : `${reason} — ${state.players[winnerIndex].name} 승리! (체력 ${p0.popularity} : ${p1.popularity})`;
     return withLog({ ...state, phase: "gameover", winnerIndex }, msg);
 }
 // ── 리듀서 진입점 ────────────────────────────────────────────
@@ -727,17 +727,35 @@ export function reduce(state, action) {
         return startGame(action);
     if (!state)
         throw new Error("게임이 아직 시작되지 않았습니다.");
+    // 이번 액션 처리 중 "덱이 빈 채로 드로우를 시도"한 플레이어가 있는지 추적한다.
+    deckOutFlags = [false, false];
+    let result;
     switch (action.type) {
         case "PLAY_CARD":
-            return playCard(state, action.playerIndex, action.instanceId);
+            result = playCard(state, action.playerIndex, action.instanceId);
+            break;
         case "END_TURN":
-            return endTurn(state, action.playerIndex);
+            result = endTurn(state, action.playerIndex);
+            break;
         case "PASS_REACTION":
-            return passReaction(state, action.playerIndex);
+            result = passReaction(state, action.playerIndex);
+            break;
         case "DISMISS_REVEAL":
-            return { ...state, revealedHand: null };
+            result = { ...state, revealedHand: null };
+            break;
         default:
-            return state;
+            result = state;
     }
+    // 롤링 걸처럼 턴당 횟수 제한 없이 재사용 가능한 카드는 카드 자체를 막는 대신,
+    // "덱이 다 떨어진 뒤에도 드로우를 시도하면 그 즉시 덱사로 게임이 끝난다"는
+    // 규칙으로 자연스럽게 제동이 걸리게 한다 (확률이 나쁘면 스스로 위험해짐).
+    if (result.phase !== "gameover" && (deckOutFlags[0] || deckOutFlags[1])) {
+        const names = [
+            deckOutFlags[0] ? result.players[0].name : null,
+            deckOutFlags[1] ? result.players[1].name : null,
+        ].filter((n) => n !== null);
+        result = finalizePopularityComparison(result, `${names.join(", ")}의 덱이 소진된 상태에서 카드를 뽑으려 했습니다 (덱사)`);
+    }
+    return result;
 }
 //# sourceMappingURL=engine.js.map

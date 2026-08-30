@@ -202,8 +202,8 @@ export function renderDeckScreen(handlers) {
         <div class="setup-row">
           <label>승리 모드</label>
           <select id="mode-select">
-            <option value="battle">배틀 모드 (인기도 0으로 만들기)</option>
-            <option value="chart">차트 모드 (턴 제한 후 인기도 비교)</option>
+            <option value="battle">배틀 모드 (체력 0으로 만들기)</option>
+            <option value="chart">차트 모드 (턴 제한 후 체력 비교)</option>
           </select>
         </div>
 
@@ -216,7 +216,7 @@ export function renderDeckScreen(handlers) {
         <h3>안내</h3>
         <div class="log">
           이 프로토타입은 AI 상대와의 1인 대전만 지원합니다. 재생 포인트 같은
-          자원 시스템은 없습니다 — 인기도(체력)만 신경 쓰면 됩니다.<br><br>
+          자원 시스템은 없습니다 — 체력만 신경 쓰면 됩니다.<br><br>
           · 공격 카드를 내면 그 즉시 자신의 턴이 끝납니다.<br>
           · 아이템 카드는 손패에 있는 한 몇 장이든 낼 수 있습니다.<br>
           · 효과 카드 중 일부(코러스)는 상대 턴에도 반응으로 낼 수 있습니다.

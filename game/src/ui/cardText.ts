@@ -3,7 +3,7 @@ import { SongCardDef, SongEffect, StoryTick } from "../core/types.js";
 function tickText(tick: StoryTick): string {
   switch (tick.kind) {
     case "damageOpponent":
-      return `상대 인기도 ${tick.amount} 감소`;
+      return `상대 체력 ${tick.amount} 감소`;
     case "drawCard":
       return `카드 ${tick.amount}장 드로우`;
   }
@@ -13,24 +13,24 @@ function tickText(tick: StoryTick): string {
 export function effectText(effect: SongEffect): string {
   switch (effect.kind) {
     case "damage":
-      return `상대 인기도 ${effect.amount} 감소`;
+      return `상대 체력 ${effect.amount} 감소`;
     case "damageThenHealSelf":
-      return `상대 인기도 ${effect.amount} 감소, 자신 인기도 ${effect.heal} 회복`;
+      return `상대 체력 ${effect.amount} 감소, 자신 체력 ${effect.heal} 회복`;
     case "damageBonusIfStoryOnField":
-      return `상대 인기도 ${effect.amount} 감소 (필드에 효과 카드가 설치되어 있으면 +${effect.bonus})`;
+      return `상대 체력 ${effect.amount} 감소 (필드에 효과 카드가 설치되어 있으면 +${effect.bonus})`;
     case "damageBonusIfPlayedSongThisTurn":
-      return `상대 인기도 ${effect.amount} 감소 (이번 턴에 이미 카드를 냈다면 +${effect.bonus})`;
+      return `상대 체력 ${effect.amount} 감소 (이번 턴에 이미 카드를 냈다면 +${effect.bonus})`;
     case "damageThenOpponentDraws":
-      return `상대 인기도 ${effect.amount} 감소, 상대도 카드 ${effect.opponentDraw}장 드로우`;
+      return `상대 체력 ${effect.amount} 감소, 상대도 카드 ${effect.opponentDraw}장 드로우`;
     case "damageThenPeekOpponentHand":
-      return `상대 인기도 ${effect.amount} 감소, 상대 손패 전체 공개`;
+      return `상대 체력 ${effect.amount} 감소, 상대 손패 전체 공개`;
     case "drawAfterDamage":
-      return `상대 인기도 ${effect.amount} 감소 후 카드 ${effect.draw}장 드로우`;
+      return `상대 체력 ${effect.amount} 감소 후 카드 ${effect.draw}장 드로우`;
     case "heal":
-      return `자신 인기도 ${effect.amount} 회복`;
+      return `자신 체력 ${effect.amount} 회복`;
     case "buffNextVocalWithSelfCost":
       return effect.selfPopularityCostOnTurnEnd > 0
-        ? `다음 공격 카드 데미지 +${effect.amount} (이번 턴 종료 시 자신 인기도 ${effect.selfPopularityCostOnTurnEnd} 감소)`
+        ? `다음 공격 카드 데미지 +${effect.amount} (이번 턴 종료 시 자신 체력 ${effect.selfPopularityCostOnTurnEnd} 감소)`
         : `다음 공격 카드 데미지 +${effect.amount}`;
     case "debuffOpponentNextVocal":
       return `상대의 다음 공격 카드 데미지 -${effect.amount}`;
