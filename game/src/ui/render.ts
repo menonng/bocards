@@ -1,6 +1,7 @@
 import { CardInstance, GameMode, GameState, SongCardDef } from "../core/types.js";
 import { STAGE_CARDS } from "../core/data/stageCards.js";
 import { getSongDef, canPlayCard } from "../core/engine.js";
+import { getProducer } from "../core/data/producers.js";
 import { cardTypeLabel, effectText, rarityLabel } from "./cardText.js";
 
 export interface GameHandlers {
@@ -116,7 +117,7 @@ function renderCard(
       </div>
       <div class="card-name">${def.nameKo}</div>
       <div class="card-name-original">${def.nameOriginal}</div>
-      <div class="card-producer">${def.producerId}${def.isMyth ? " · 👑 신화입성" : ""}</div>
+      <div class="card-producer">${getProducer(def.producerId).nameKo}${def.isMyth ? " · 👑 신화입성" : ""}${def.youtube100M ? " · ▶️ 1억뷰" : ""}</div>
       <div class="card-effect">${effectText(def.effect)}</div>
       <div class="card-rarity">${rarityLabel(def.rarity)}</div>
     </div>

@@ -47,6 +47,8 @@ export function effectText(effect) {
             return `설치: 자신의 비용 ${effect.maxCost} 이하 곡 카드가 무덤에 갈 때 1회, 즉시 손으로 되돌림`;
         case "markReviveOnceInGraveyard":
             return `이 카드는 무덤에 간 뒤, 자신의 다음 턴 시작 시 1회 손으로 돌아온다`;
+        case "stealRandomCard":
+            return `상대의 손패에서 무작위로 카드 1장을 가져온다`;
     }
 }
 export function cardTypeLabel(type) {

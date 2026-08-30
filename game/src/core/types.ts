@@ -42,7 +42,8 @@ export type SongEffect =
   | { kind: "negateOpponentNextSupportOrStory" }
   | { kind: "installStoryTick"; duration: number; tick: StoryTick }
   | { kind: "installReviveOnceOnDeath"; maxCost: number }
-  | { kind: "markReviveOnceInGraveyard" };
+  | { kind: "markReviveOnceInGraveyard" }
+  | { kind: "stealRandomCard" };
 
 /** 비용을 상황에 따라 낮춰주는 규칙 (함수 대신 데이터로 표현) */
 export type CostRule = {
@@ -61,6 +62,8 @@ export interface SongCardDef {
   rarity: Rarity;
   /** 신화입성곡(니코니코동화 1,000만 재생 달성) 여부 */
   isMyth: boolean;
+  /** 유튜브 1억 회 재생 달성 여부 (신화입성과 별개 기준) */
+  youtube100M?: boolean;
   effect: SongEffect;
   costRule?: CostRule;
   flavor: string;

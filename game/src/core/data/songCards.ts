@@ -1,17 +1,34 @@
 import { SongCardDef } from "../types.js";
 
 // ─────────────────────────────────────────────────────────────
-// 곡 카드(스킬 카드) 30장.
+// 곡 카드(스킬 카드).
 //
-// isMyth: true 인 10장은 "VOCALOID 神話入り"(니코니코동화 누적 1,000만 재생
-// 달성곡) 목록에 해당하며, 2026-08 시점 조사로 확인된 아래 곡들이다.
-//   DECO*27: モザイクロール / ゴーストルール
+// isMyth: true 는 "VOCALOID 神話入り"(니코니코동화 누적 1,000만 재생 달성곡)
+// 태그다. 2026-08 시점 조사로 확인한 전체 목록(CeVIO 등 VOCALOID가 아닌 엔진
+// 곡은 이 게임 성격상 제외)을 전부 카드로 넣었다 — P카드 6명 소속 여부와
+// 무관하게, 신화입성곡이면 전부 포함한다는 방침에 따른 것이다.
+//
+//   DECO*27: モザイクロール / ゴーストルール / ヒバナ
 //   하치(米津玄師): マトリョシカ / 砂の惑星 / ドーナツホール
 //   wowaka: 裏表ラバーズ / ローリンガール / ワールズエンド・ダンスホール / アンハッピーリフレイン
-//   이요와: きゅうくらりん (2025-04-06 달성)
-//   Tak(2024년 데뷔) / 50mang 은 해당 없음(니코니코 1,000만 재생곡 없음).
-// 나머지 20장은 각 P의 대표곡을 골라 채운 일반 등급 카드다.
-// 실제 원곡의 재생수/등급 상태는 시간에 따라 바뀔 수 있으니, 확장 시 재확인 필요.
+//   이요와: きゅうくらりん (2025-04-06)
+//   (게스트, P카드 없음) ika: みくみくにしてあげる♪【してやんよ】(사상 최초, 2012)
+//   ryo(supercell): メルト / ワールドイズマイン
+//   黒うさP: 千本桜 / cosMo@暴走P: 初音ミクの消失 -DEAD END-
+//   kemu: 六兆年と一夜物語 / 40mP: アンノウン・マザーグース
+//   Rerulili: 脳漿炸裂ガール / 164: 天ノ弱 / イロハ(sasaki): 炉心融解
+//   doriko: ロミオとシンデレラ / mikitoP: ロキ / カイリキベア: ベノム
+//   Neru: ロストワンの号哭 / サツキ: メズマライザー (2026-01-25)
+//   Tak(2024년 데뷔) / 50mang 은 신화입성곡 없음(2026-08 기준 확인).
+//
+// youtube100M: true 는 니코니코 신화입성과 별개로 유튜브 누적 1억 회
+// 재생을 달성한 곡 표시다(위 신화입성곡 중에도 겹치는 경우가 있다).
+// 이번 조사에서 기록이 확인된 유코피 「강풍 올백」, 키쿠오 「愛して愛して愛して」를
+// 추가로 카드화했다 (BUTCHER VANITY는 사용자 요청으로 제외).
+//
+// 그 외 나머지는 신화입성/1억뷰 여부와 무관하게 각 P의 대표곡을 골라 채운
+// 일반 등급 카드다. 실제 원곡의 재생수/등급 상태는 시간에 따라 바뀔 수 있으니,
+// 확장 시 재확인이 필요하다.
 // ─────────────────────────────────────────────────────────────
 
 export const SONG_CARDS: SongCardDef[] = [
@@ -224,6 +241,7 @@ export const SONG_CARDS: SongCardDef[] = [
     type: "support",
     rarity: "legendary",
     isMyth: true,
+    youtube100M: true,
     effect: { kind: "drawThenDiscardRandom", draw: 2, discard: 1 },
     flavor: "빙글빙글 어지러운 생각들 속에서, 결국 하나는 놓치고 만다.",
   },
@@ -402,5 +420,239 @@ export const SONG_CARDS: SongCardDef[] = [
     isMyth: false,
     effect: { kind: "damage", amount: 3 },
     flavor: "그리스 신화 속 마녀의 이야기를 한국적 정서로 풀어낸 한 곡.",
+  },
+
+  // ── 신화입성곡 추가분 (P카드 소속과 무관한 게스트 프로듀서 포함) ──────
+
+  {
+    id: "ika-mikumiku",
+    nameKo: "미쿠미쿠하게 해줄게",
+    nameOriginal: "みくみくにしてあげる♪【してやんよ】",
+    producerId: "ika",
+    cost: 6,
+    type: "support",
+    rarity: "legendary",
+    isMyth: true,
+    effect: { kind: "stealRandomCard" },
+    flavor: "사상 최초의 신화입성곡 — 한 번 들으면 누구든 미쿠미쿠하게 만들어버린다.",
+  },
+  {
+    id: "ryo-melt",
+    nameKo: "멜트",
+    nameOriginal: "メルト",
+    producerId: "ryo",
+    cost: 3,
+    type: "support",
+    rarity: "legendary",
+    isMyth: true,
+    effect: { kind: "buffNextVocalWithSelfCost", amount: 3, selfPopularityCostOnTurnEnd: 0 },
+    flavor: "설레는 마음이 녹아내리듯, 다음 무대를 더 빛나게 한다.",
+  },
+  {
+    id: "kurousa-senbonzakura",
+    nameKo: "천본앵",
+    nameOriginal: "千本桜",
+    producerId: "kurousa",
+    cost: 7,
+    type: "vocal",
+    rarity: "legendary",
+    isMyth: true,
+    effect: { kind: "damage", amount: 9 },
+    flavor: "업로드 4년 만에 최단 기록으로 신화입성한, 보카로 역사상 가장 상징적인 한 곡.",
+  },
+  {
+    id: "cosmo-miku-shoushitsu",
+    nameKo: "하츠네 미쿠의 소실",
+    nameOriginal: "初音ミクの消失 -DEAD END-",
+    producerId: "cosmo",
+    cost: 6,
+    type: "vocal",
+    rarity: "legendary",
+    isMyth: true,
+    effect: { kind: "damage", amount: 7 },
+    flavor: "초고속 보컬로, 사라져가는 존재의 절박함을 쏟아낸다.",
+  },
+  {
+    id: "kemu-rokuchounen",
+    nameKo: "육조년과 하룻밤 이야기",
+    nameOriginal: "六兆年と一夜物語",
+    producerId: "kemu",
+    cost: 3,
+    type: "chorus",
+    rarity: "legendary",
+    isMyth: true,
+    effect: { kind: "draw", amount: 2 },
+    flavor: "현기증 날 만큼 빠르고 기묘한 전개 속에서, 순식간에 다음 수를 찾아낸다.",
+  },
+  {
+    id: "ryo-world-is-mine",
+    nameKo: "월드 이즈 마인",
+    nameOriginal: "ワールドイズマイン",
+    producerId: "ryo",
+    cost: 2,
+    type: "support",
+    rarity: "legendary",
+    isMyth: true,
+    effect: { kind: "debuffOpponentNextVocal", amount: 3 },
+    flavor: "세상에서 제일가는 공주님은, 상대의 다음 차례마저 자기 뜻대로 만든다.",
+  },
+  {
+    id: "40mp-unknown-mothergoose",
+    nameKo: "언노운 마더구스",
+    nameOriginal: "アンノウン・マザーグース",
+    producerId: "p40m",
+    cost: 3,
+    type: "story",
+    rarity: "legendary",
+    isMyth: true,
+    effect: {
+      kind: "installStoryTick",
+      duration: 3,
+      tick: { kind: "drawCard", amount: 1 },
+    },
+    flavor: "정체를 알 수 없는 동요처럼, 매 턴 새로운 실마리를 하나씩 흘려준다.",
+  },
+  {
+    id: "rerulili-noushou-sakuretsu",
+    nameKo: "뇌장작렬 걸",
+    nameOriginal: "脳漿炸裂ガール",
+    producerId: "rerulili",
+    cost: 5,
+    type: "vocal",
+    rarity: "legendary",
+    isMyth: true,
+    effect: { kind: "damage", amount: 6 },
+    flavor: "제목 그대로, 머릿속이 터져나갈 듯한 폭발적 에너지를 그대로 꽂아넣는다.",
+  },
+  {
+    id: "p164-amanojaku",
+    nameKo: "아마노자쿠",
+    nameOriginal: "天ノ弱",
+    producerId: "p164",
+    cost: 3,
+    type: "support",
+    rarity: "legendary",
+    isMyth: true,
+    effect: { kind: "negateOpponentNextSupportOrStory" },
+    flavor: "청개구리처럼 삐딱한 마음이, 상대가 준비한 다음 수를 뒤틀어버린다.",
+  },
+  {
+    id: "irohasasaki-roshin-yuukai",
+    nameKo: "노심융해",
+    nameOriginal: "炉心融解",
+    producerId: "irohasasaki",
+    cost: 5,
+    type: "vocal",
+    rarity: "legendary",
+    isMyth: true,
+    effect: { kind: "damage", amount: 5 },
+    flavor: "차갑게 가라앉았던 감정이 한계를 넘어 녹아내린다.",
+  },
+  {
+    id: "doriko-romeo-cinderella",
+    nameKo: "로미오와 신데렐라",
+    nameOriginal: "ロミオとシンデレラ",
+    producerId: "doriko",
+    cost: 4,
+    type: "vocal",
+    rarity: "legendary",
+    isMyth: true,
+    effect: { kind: "damageBonusIfPlayedSongThisTurn", amount: 4, bonus: 2 },
+    flavor: "안 된다는 말을 들을수록 더 하고 싶어지는, 반항기 가득한 사랑 노래.",
+  },
+  {
+    id: "mikitop-roki",
+    nameKo: "로키",
+    nameOriginal: "ロキ",
+    producerId: "mikitop",
+    cost: 3,
+    type: "support",
+    rarity: "legendary",
+    isMyth: true,
+    effect: { kind: "draw", amount: 2 },
+    flavor: "보컬로이드와 사람이 함께 부른 최초의 신화입성곡 — 주고받는 호흡이 다음 수를 불러온다.",
+  },
+  {
+    id: "deco27-hibana",
+    nameKo: "히바나",
+    nameOriginal: "ヒバナ",
+    producerId: "deco27",
+    cost: 5,
+    type: "vocal",
+    rarity: "legendary",
+    isMyth: true,
+    effect: { kind: "drawAfterDamage", amount: 5, draw: 1 },
+    flavor: "튀어 오른 불꽃 하나가, 감춰뒀던 진심을 드러낸다. DECO*27의 세 번째 신화입성곡.",
+  },
+  {
+    id: "kairikibear-venom",
+    nameKo: "베놈",
+    nameOriginal: "ベノム",
+    producerId: "kairikibear",
+    cost: 4,
+    type: "story",
+    rarity: "legendary",
+    isMyth: true,
+    effect: {
+      kind: "installStoryTick",
+      duration: 2,
+      tick: { kind: "damageOpponent", amount: 2 },
+    },
+    flavor: "한 번 스며든 독은, 시간이 지날수록 서서히 상대를 갉아먹는다.",
+  },
+  {
+    id: "neru-lostone",
+    nameKo: "로스트 원의 호곡",
+    nameOriginal: "ロストワンの号哭",
+    producerId: "neru",
+    cost: 4,
+    type: "vocal",
+    rarity: "legendary",
+    isMyth: true,
+    effect: { kind: "damage", amount: 4 },
+    costRule: { kind: "reduceIfHandLow", threshold: 1, reduction: 1 },
+    flavor: "홀로 남겨진 자의 절규는, 손에 쥔 게 적을수록 더 날카롭게 터진다.",
+  },
+  {
+    id: "satsuki-mesmerizer",
+    nameKo: "메즈마라이저",
+    nameOriginal: "メズマライザー",
+    producerId: "satsuki",
+    cost: 2,
+    type: "support",
+    rarity: "legendary",
+    isMyth: true,
+    youtube100M: true,
+    effect: { kind: "gainPPNow", amount: 2 },
+    flavor: "한 번 들으면 홀린다는 최면술사 — 유튜브 1억 회와 니코니코 신화입성을 모두 달성한 유일한 곡.",
+  },
+
+  // ── 유튜브 1억 회 재생 달성곡 (신화입성 기준과는 별개) ──────────
+
+  {
+    id: "yukopi-kyoufuu-allback",
+    nameKo: "강풍 올백",
+    nameOriginal: "強風オールバック",
+    producerId: "yukopi",
+    cost: 1,
+    type: "chorus",
+    rarity: "rare",
+    isMyth: false,
+    youtube100M: true,
+    effect: { kind: "draw", amount: 1 },
+    flavor: "느닷없이 몰아친 강풍처럼, 순식간에 다음 패를 끌어온다.",
+  },
+  {
+    id: "kikuo-aishite",
+    nameKo: "사랑해 사랑해 사랑해",
+    nameOriginal: "愛して愛して愛して",
+    producerId: "kikuo",
+    cost: 3,
+    type: "support",
+    rarity: "rare",
+    isMyth: false,
+    youtube100M: true,
+    effect: { kind: "heal", amount: 3 },
+    flavor: "몽환적으로 되풀이되는 고백이, 지친 마음을 다독인다.",
   },
 ];

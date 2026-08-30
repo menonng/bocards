@@ -623,6 +623,20 @@ function resolveEffect(
       // 무덤행 시 flags.revivePending 처리는 playCard()에서 담당
       break;
     }
+    case "stealRandomCard": {
+      const targetHand = s.players[target].hand;
+      if (targetHand.length > 0) {
+        const idx = Math.floor(Math.random() * targetHand.length);
+        const stolen = targetHand[idx];
+        s = updatePlayer(s, target, (p) => ({
+          ...p,
+          hand: p.hand.filter((_, i) => i !== idx),
+        }));
+        s = updatePlayer(s, actor, (p) => ({ ...p, hand: [...p.hand, stolen] }));
+        s = withLog(s, `상대의 손패에서 카드 한 장을 미쿠미쿠하게 가져왔습니다!`);
+      }
+      break;
+    }
   }
 
   return finalizeIfGameOver(s);
