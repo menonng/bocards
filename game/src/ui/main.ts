@@ -12,7 +12,7 @@ import {
 
 const AI_INDEX = 1 as const;
 const AI_THINK_DELAY_MS = 550;
-const STAGE_INTRO_MS = 1400;
+const STAGE_INTRO_MS = 2000;
 
 let game: GameState | null = null;
 let screen: Screen = "deck";

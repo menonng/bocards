@@ -1,6 +1,6 @@
 import { SONG_CARDS } from "../core/data/songCards.js";
 import { STAGE_CARDS } from "../core/data/stageCards.js";
-import { getSongDef, canPlayCard, DEFAULT_DECK_RATIO, BENCH_SIZE, SPELL_TRAP_ZONE_SIZE, } from "../core/engine.js";
+import { getSongDef, canPlayCard, DEFAULT_DECK_RATIO, BENCH_SIZE, SPELL_TRAP_ZONE_SIZE, HAND_REFILL_ON_EMPTY, } from "../core/engine.js";
 import { getProducer } from "../core/data/producers.js";
 import { cardArtDataUri, producerBadgeDataUri, twitterAvatarUrl, youtubeThumbnailUrl, } from "./cardArt.js";
 import { cardTypeLabel, effectText, recordText } from "./cardText.js";
@@ -17,7 +17,7 @@ function el(html) {
 //    사이 여백을 건널 때도 안 닫히도록 짧은 유예시간을 둔다).
 // 3) 그 상태로 설명창을 클릭하면 1페이지(효과만) ↔ 2페이지(투고일/기록 또는
 //    P의 대표곡·활동시기 + 코멘트)를 오간다. 다시 닫히면 항상 1페이지로 리셋.
-function attachTooltipBehavior(node) {
+function attachTooltipBehavior(node, opts = {}) {
     const pop = node.querySelector(".info-pop");
     if (!pop)
         return;
@@ -39,6 +39,7 @@ function attachTooltipBehavior(node) {
             window.clearTimeout(hideTimer);
         hideTimer = window.setTimeout(() => {
             pop.classList.remove("pop-visible");
+            pop.classList.remove("pop-instant");
             pop.dataset.page = "0";
         }, 200);
     };
@@ -47,9 +48,23 @@ function attachTooltipBehavior(node) {
     pop.addEventListener("mouseenter", show);
     pop.addEventListener("mouseleave", scheduleHide);
     pop.addEventListener("click", (e) => {
+        // 팝업 안의 액션 버튼(카드 사용하기 등)을 눌렀을 때는 페이지를 넘기지 않는다.
+        if (e.target.closest(".pop-play-btn"))
+            return;
         e.stopPropagation();
         pop.dataset.page = pop.dataset.page === "1" ? "0" : "1";
     });
+    if (opts.clickToShow) {
+        // 손패 카드: 좌클릭하면 호버 대기(1초) 없이 바로 설명창이 뜬다. .pop-visible
+        // 자체에는 호버용 transition-delay:1s가 걸려 있으므로, 그 지연을 상쇄하는
+        // .pop-instant를 함께 켜준다.
+        node.addEventListener("click", (e) => {
+            if (e.target.closest(".info-pop"))
+                return;
+            pop.classList.add("pop-instant");
+            show();
+        });
+    }
 }
 /** 곡 카드 아트: 공식 YouTube 영상이 확인된 곡은 그 썸네일(i.ytimg.com)을,
  *  아니면 오리지널 SVG를 사용한다. 썸네일 로드 실패 시 자동으로 SVG로 대체. */
@@ -80,7 +95,7 @@ function producerArt(producer) {
 function imgTag(art, className) {
     return `<img class="${className}" src="${art.src}" alt="" onerror="this.onerror=null;this.src='${art.fallback}'"/>`;
 }
-function songTooltipHtml(def) {
+function songTooltipHtml(def, actionsHtml) {
     const producer = getProducer(def.producerId);
     const record = recordText(def);
     const art = songArt(def, producer);
@@ -102,6 +117,21 @@ function songTooltipHtml(def) {
         <div class="comment">${def.flavor}</div>
       </div>
       <div class="pop-hint">클릭해서 더 보기</div>
+      ${actionsHtml ?? ""}
+    </div>`;
+}
+/** 카드 이미지 + 유형/체력 태그 + 이름 + 효과를 담은 카드 앞면 공통 마크업(9:16). */
+function cardFaceInner(def, art, opts = {}) {
+    const showHpTag = opts.showHpTag ?? true;
+    return `
+    ${imgTag(art, "")}
+    <div class="mc-body">
+      <div class="mc-tags">
+        <span class="tag">${cardTypeLabel(def.type)}</span>
+        ${def.type === "vocal" && showHpTag ? `<span class="tag">♥ ${def.hp}</span>` : ""}
+      </div>
+      <div class="mc-name">${def.nameKo}</div>
+      <div class="mc-effect">${effectText(def.effect)}</div>
     </div>`;
 }
 function stageTooltipHtml(stageId) {
@@ -151,6 +181,8 @@ function songCardFull(def) {
     attachTooltipBehavior(node);
     return node;
 }
+/** 손패 카드. 좌클릭하면(호버 대기 없이) 설명창이 뜨고, 그 안의 버튼으로
+ *  실제 플레이(소환/사용)를 확정한다 — 카드를 직접 클릭해도 바로 나가지 않는다. */
 function miniCard(card, playable, reason, onClick) {
     const def = getSongDef(card.defId);
     const producer = getProducer(def.producerId);
@@ -158,17 +190,22 @@ function miniCard(card, playable, reason, onClick) {
     const borderClasses = [def.isMyth ? "gold" : "", def.youtube100M ? "red" : ""]
         .filter(Boolean)
         .join(" ");
+    const actionsHtml = playable
+        ? `<button type="button" class="action pop-play-btn">${def.type === "vocal" ? "소환하기" : "사용하기"}</button>`
+        : `<div class="pop-play-reason">${reason ?? "지금은 낼 수 없습니다."}</div>`;
     const node = el(`
-    <div class="mini-card ${borderClasses} ${playable ? "playable" : "disabled"}" title="${reason ?? ""}"
+    <div class="mini-card ${borderClasses} ${playable ? "playable" : "disabled"}"
          style="--card-accent:${producer.accent}">
-      ${imgTag(art, "")}
-      <div class="mc">${def.nameKo}</div>
-      ${songTooltipHtml(def)}
+      ${cardFaceInner(def, art)}
+      ${songTooltipHtml(def, actionsHtml)}
     </div>
   `);
-    attachTooltipBehavior(node);
-    if (playable)
-        node.addEventListener("click", onClick);
+    attachTooltipBehavior(node, { clickToShow: true });
+    const playBtn = node.querySelector(".pop-play-btn");
+    playBtn?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onClick();
+    });
     return node;
 }
 /** 필드(배틀/벤치)에 놓인 보컬 카드 1장 — 체력바 포함. */
@@ -183,8 +220,7 @@ function battlerTile(battler, opts = {}) {
     const node = el(`
     <div class="mini-card battler-tile ${borderClasses} ${opts.clickable ? "playable" : ""}"
          style="--card-accent:${producer.accent}">
-      ${imgTag(art, "")}
-      <div class="mc">${def.nameKo}</div>
+      ${cardFaceInner(def, art, { showHpTag: false })}
       <div class="hp-bar"><div class="hp-bar-fill" style="width:${pct}%"></div></div>
       <div class="battler-hp">♥ ${battler.currentHp}/${battler.maxHp}</div>
       ${songTooltipHtml(def)}
@@ -198,24 +234,29 @@ function battlerTile(battler, opts = {}) {
 function emptyBattlerSlot(label) {
     return el(`<div class="battler-slot empty-slot">${label}</div>`);
 }
-/** 한 플레이어의 배틀(1) + 벤치(BENCH_SIZE) 자리를 그린다. */
-function fieldZone(state, index, canSwitch, handlers) {
+/** 한 플레이어의 필드를 배틀(1) → 벤치(BENCH_SIZE) → 마법/함정(SPELL_TRAP_ZONE_SIZE)
+ *  순서로 한 줄에 그린다. */
+function fieldRow(state, index, canSwitch, handlers) {
     const p = state.players[index];
-    const wrap = el(`<div class="field-zone"></div>`);
+    const wrap = el(`<div class="field-row"></div>`);
     const activeWrap = el(`<div class="battler-slot active-slot"></div>`);
-    activeWrap.appendChild(p.activeBattler ? battlerTile(p.activeBattler) : emptyBattlerSlot("배틀 자리"));
+    activeWrap.appendChild(p.activeBattler ? battlerTile(p.activeBattler) : emptyBattlerSlot("배틀"));
     wrap.appendChild(activeWrap);
-    const benchWrap = el(`<div class="bench-row"></div>`);
     for (const b of p.benchBattlers) {
-        benchWrap.appendChild(battlerTile(b, {
+        wrap.appendChild(battlerTile(b, {
             clickable: canSwitch,
             onClick: canSwitch ? () => handlers.onSwitchActive(b.instanceId) : undefined,
         }));
     }
     for (let i = p.benchBattlers.length; i < BENCH_SIZE; i++) {
-        benchWrap.appendChild(emptyBattlerSlot("벤치"));
+        wrap.appendChild(emptyBattlerSlot("벤치"));
     }
-    wrap.appendChild(benchWrap);
+    for (const story of p.fieldStories) {
+        wrap.appendChild(spellTrapTile(story.defId, story.remainingTurns));
+    }
+    for (let i = p.fieldStories.length; i < SPELL_TRAP_ZONE_SIZE; i++) {
+        wrap.appendChild(emptyBattlerSlot("마법/함정"));
+    }
     return wrap;
 }
 /** 덱/무덤을 "쌓인 카드 뭉치"로 시각화한다(실제 장수만큼 렌더링하지 않고,
@@ -230,29 +271,20 @@ function cardStack(count, label) {
     </div>
   `);
 }
-/** "마법/함정 카드 존" — 설치된 fieldStories(최대 SPELL_TRAP_ZONE_SIZE)를 타일로 그린다. */
-function spellTrapZone(state, index) {
-    const p = state.players[index];
-    const wrap = el(`<div class="spelltrap-row"></div>`);
-    for (const story of p.fieldStories) {
-        const def = getSongDef(story.defId);
-        const producer = getProducer(def.producerId);
-        const art = songArt(def, producer);
-        const node = el(`
-      <div class="mini-card spelltrap-tile" style="--card-accent:${producer.accent}">
-        ${imgTag(art, "")}
-        <div class="mc">${def.nameKo}</div>
-        <div class="spelltrap-turns">${story.remainingTurns === 999 ? "대기" : story.remainingTurns + "턴"}</div>
-        ${songTooltipHtml(def)}
-      </div>
-    `);
-        attachTooltipBehavior(node);
-        wrap.appendChild(node);
-    }
-    for (let i = p.fieldStories.length; i < SPELL_TRAP_ZONE_SIZE; i++) {
-        wrap.appendChild(emptyBattlerSlot("마법/함정"));
-    }
-    return wrap;
+/** "마법/함정 카드 존"에 설치된 fieldStory 1장을 타일로 그린다. */
+function spellTrapTile(defId, remainingTurns) {
+    const def = getSongDef(defId);
+    const producer = getProducer(def.producerId);
+    const art = songArt(def, producer);
+    const node = el(`
+    <div class="mini-card spelltrap-tile" style="--card-accent:${producer.accent}">
+      ${cardFaceInner(def, art)}
+      <div class="spelltrap-turns">${remainingTurns === 999 ? "대기" : remainingTurns + "턴"}</div>
+      ${songTooltipHtml(def)}
+    </div>
+  `);
+    attachTooltipBehavior(node);
+    return node;
 }
 function stageBadge(stageId, animateArrival = false) {
     const stage = STAGE_CARDS.find((s) => s.id === stageId);
@@ -361,8 +393,10 @@ export function renderDeckScreen(handlers) {
           · 배틀 자리의 보컬만 스킬을 쓸 수 있고, 스킬을 쓰면 그 즉시 턴이 끝납니다.<br>
           · 배틀 카드가 쓰러지면 벤치에서 자동으로 승격됩니다 — 배틀·벤치에 모두
           보컬 카드가 없으면 그 즉시 패배합니다.<br>
-          · 아이템 카드는 손패에 있는 한 몇 장이든 낼 수 있습니다.<br>
-          · 아이템 카드 중 일부는 상대 턴에도 반응으로 낼 수 있습니다.
+          · 아이템 카드는 턴당 1장만 낼 수 있습니다(롤링 걸처럼 재사용 가능한
+          카드는 예외).<br>
+          · 아이템 카드 중 일부는 상대 턴에도 반응으로 낼 수 있습니다.<br>
+          · 손패가 0장이 되면 ${HAND_REFILL_ON_EMPTY}장을 더 뽑습니다.
         </div>
       </div>
     </div>
@@ -400,11 +434,11 @@ export function renderCardsScreen(onNav) {
     return shell("cards", "카드 목록", content, onNav);
 }
 // ── 대전 화면 ────────────────────────────────────────────────
-/** 필드(배틀+벤치) 한 줄 + 옆의 덱/무덤 카드 뭉치를 함께 그린다. */
+/** 필드(배틀→벤치→마법/함정) 한 줄 + 옆의 덱/무덤 카드 뭉치(세로 배치)를 함께 그린다. */
 function zoneRow(state, index, canSwitch, handlers) {
     const p = state.players[index];
     const row = el(`<div class="zone-row"></div>`);
-    row.appendChild(fieldZone(state, index, canSwitch, handlers));
+    row.appendChild(fieldRow(state, index, canSwitch, handlers));
     const stacks = el(`<div class="stack-pair"></div>`);
     stacks.appendChild(cardStack(p.deck.length, "덱"));
     stacks.appendChild(cardStack(p.graveyard.length, "무덤"));
@@ -433,8 +467,6 @@ export function renderBattleScreen(state, handlers, showStageIntro, animateStage
     boardLeft.appendChild(el(`<div class="turn">${state.phase === "gameover" ? "게임 종료" : isReaction ? (isHumanTurn ? "당신의 반응 구간" : "상대의 반응 구간") : state.activePlayerIndex === HUMAN ? "당신의 턴" : "상대의 턴"} · 턴 ${state.turnNumber}</div>`));
     boardMain.appendChild(el(`<div class="side-stat"><span>OPPONENT / ${state.players[AI].name}</span><span class="hp">♥ ${state.players[AI].popularity}</span></div>`));
     boardMain.appendChild(zoneRow(state, AI, false, handlers));
-    boardMain.appendChild(spellTrapZone(state, AI));
-    boardMain.appendChild(spellTrapZone(state, HUMAN));
     boardMain.appendChild(zoneRow(state, HUMAN, canSwitch, handlers));
     boardMain.appendChild(el(`<div class="side-stat"><span>YOU / ${human.name}</span><span class="hp">♥ ${human.popularity}</span></div>`));
     const handRow = el(`<div class="hand"></div>`);
@@ -450,12 +482,13 @@ export function renderBattleScreen(state, handlers, showStageIntro, animateStage
         handRow.appendChild(node);
     });
     boardMain.appendChild(handRow);
-    // 사이드 패널 (자원 시스템 없음 — 메인 발동 횟수만 표시)
+    // 사이드 패널 (자원 시스템 없음 — 소환/아이템 발동 횟수만 표시)
     side.appendChild(el(`
       <div class="panel">
         <h3>ACTIONS</h3>
         <div class="resource">
           <div class="res"><b>${human.mainPlaysRemaining}</b><small>남은 소환 횟수</small></div>
+          <div class="res"><b>${human.itemPlaysRemaining}</b><small>남은 아이템 사용</small></div>
         </div>
         ${isHumanMainTurn && human.activeBattler
         ? `<button class="action" id="skill-btn" style="margin-top:10px">스킬 사용: ${getSongDef(human.activeBattler.defId).nameKo}</button>`

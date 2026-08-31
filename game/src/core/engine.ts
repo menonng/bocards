@@ -148,7 +148,9 @@ function makeDeck(rng: () => number, ownerTag: string, ratio: DeckTypeRatio): Ca
 const BASE_HAND_LIMIT = 7;
 const BASE_START_POPULARITY = 20;
 const BASE_CHART_TURN_LIMIT = 20;
-const OPENING_HAND_SIZE = 7;
+const OPENING_HAND_SIZE = 5;
+/** 손패가 완전히 바닥나면(0장) 추가로 뽑아주는 장수 */
+export const HAND_REFILL_ON_EMPTY = 3;
 
 function createPlayer(name: string, deck: CardInstance[]): PlayerState {
   return {
@@ -164,6 +166,7 @@ function createPlayer(name: string, deck: CardInstance[]): PlayerState {
     switchedActiveThisTurn: false,
     playedSongThisTurn: false,
     mainPlaysRemaining: 1,
+    itemPlaysRemaining: 1,
     nextVocalDamageBonus: 0,
     pendingSelfDamageOnTurnEnd: 0,
     negateNextSupportOrStory: false,
@@ -384,6 +387,7 @@ function runIntroAndDraw(state: GameState): GameState {
   s = updatePlayer(s, active, (p) => ({
     ...p,
     mainPlaysRemaining: 1 + mods.extraCardPlayPerTurn,
+    itemPlaysRemaining: 1,
     playedSongThisTurn: false,
     switchedActiveThisTurn: false,
   }));
@@ -597,11 +601,15 @@ export function canPlayCard(
     ) {
       return { ok: false, reason: "마법/함정 카드 존이 가득 찼습니다." };
     }
-    // 아이템 카드는 손패에 있는 한 몇 장이든 낼 수 있다. 재사용 가능 카드
-    // (예: 롤링 걸)도 턴당 횟수 제한을 두지 않는다 — 대신 확률(드로우 실패)과
-    // 덱 소진 위험으로 스스로 브레이크가 걸리도록 설계되어 있다.
   } else {
     return { ok: false, reason: "지금은 카드를 낼 수 없는 단계입니다." };
+  }
+
+  // 아이템 카드는 턴당 1장만 낼 수 있다. 재사용 가능 카드(예: 롤링 걸)는
+  // 예외 — 대신 확률(드로우 실패)과 덱 소진 위험으로 스스로 브레이크가
+  // 걸리도록 설계되어 있으므로 이 상한을 적용하지 않는다.
+  if (def.type === "item" && !def.reusable && player.itemPlaysRemaining <= 0) {
+    return { ok: false, reason: "이번 턴에 낼 수 있는 아이템 카드를 모두 소진했습니다." };
   }
 
   return { ok: true };
@@ -697,6 +705,13 @@ function playItemCard(
   // (표리 러버즈 등 "이번 턴에 이미 곡을 냈다면" 판정용).
   if (!def.reactionPlayable) {
     s = updatePlayer(s, playerIndex, (p) => ({ ...p, playedSongThisTurn: true }));
+  }
+  // 아이템 카드 턴당 1회 제한 소모 (재사용 카드=롤링 걸은 예외).
+  if (!def.reusable) {
+    s = updatePlayer(s, playerIndex, (p) => ({
+      ...p,
+      itemPlaysRemaining: Math.max(0, p.itemPlaysRemaining - 1),
+    }));
   }
 
   s = withLog(s, `${state.players[playerIndex].name}: [${def.nameKo}] 발동!`);
@@ -1115,6 +1130,20 @@ export function reduce(state: GameState | null, action: GameAction): GameState {
       break;
     default:
       result = state;
+  }
+
+  // 손패가 완전히 바닥나면(0장) 3장을 추가로 뽑아준다. 덱까지 바닥난 상태라면
+  // 아래 덱사 체크가 바로 이어서 게임을 끝내므로 별도의 안전장치는 필요 없다.
+  if (result.phase !== "gameover") {
+    for (const idx of [0, 1] as const) {
+      if (result.players[idx].hand.length === 0) {
+        result = updatePlayer(result, idx, (p) => drawN(p, HAND_REFILL_ON_EMPTY, idx));
+        result = withLog(
+          result,
+          `${result.players[idx].name}의 손패가 바닥나 ${HAND_REFILL_ON_EMPTY}장을 더 뽑았습니다.`,
+        );
+      }
+    }
   }
 
   // 롤링 걸처럼 턴당 횟수 제한 없이 재사용 가능한 카드는 카드 자체를 막는 대신,

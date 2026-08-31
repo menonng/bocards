@@ -168,6 +168,8 @@ export interface PlayerState {
   playedSongThisTurn: boolean;
   /** 이번 턴에 사용 가능한 메인 카드 발동 횟수 (보컬 소환에만 소모된다) */
   mainPlaysRemaining: number;
+  /** 이번 턴에 낼 수 있는 아이템 카드 수 (재사용 카드=롤링 걸은 소모하지 않음) */
+  itemPlaysRemaining: number;
   /** 다음 보컬 카드에 적용될 데미지 보너스 (서포트 카드가 부여) */
   nextVocalDamageBonus: number;
   /** 턴 종료 시 자신에게 들어올 체력 감소 (고스트 룰 대가) */

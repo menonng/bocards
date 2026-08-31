@@ -3,7 +3,7 @@ import { chooseAiAction, isAiTurnNow } from "./ai.js";
 import { renderBattlePlaceholder, renderBattleScreen, renderCardsScreen, renderDeckScreen, } from "./render.js";
 const AI_INDEX = 1;
 const AI_THINK_DELAY_MS = 550;
-const STAGE_INTRO_MS = 1400;
+const STAGE_INTRO_MS = 2000;
 let game = null;
 let screen = "deck";
 let aiTimer = null;

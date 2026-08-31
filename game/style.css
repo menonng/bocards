@@ -40,11 +40,11 @@ main{padding:26px 32px 40px;overflow-x:hidden}
 .side-stat{display:flex;justify-content:space-between;align-items:center;color:#a6abb4;font-size:13px}
 .hp{font-weight:800;color:#fff}
 .turn{background:#0c0d0fdd;border:1px solid #3c4047;padding:8px 13px;border-radius:999px;font-size:11px;letter-spacing:.1em;color:#c8ccd2;text-align:center}
-.hand{display:flex;justify-content:center;gap:0;min-height:130px;align-items:flex-end;flex-wrap:nowrap;margin-top:10px;padding:0 20px}
-.hand .mini-card{margin-left:-22px;transform:translateY(var(--ty,0px));transition:transform .16s}
+.hand{display:flex;justify-content:center;gap:0;min-height:150px;align-items:flex-end;flex-wrap:wrap;margin-top:10px;padding:0 20px}
+.hand .mini-card{margin-left:-26px;cursor:pointer;transform:translateY(var(--ty,0px));transition:transform .16s}
 .hand .mini-card:first-child{margin-left:0}
-.hand .mini-card.playable:hover{
-  transform:translateY(calc(var(--ty,0px) - 16px)) scale(1.08);
+.hand .mini-card:hover{
+  transform:translateY(calc(var(--ty,0px) - 16px)) scale(1.06);
   z-index:5;
 }
 
@@ -70,10 +70,10 @@ main{padding:26px 32px 40px;overflow-x:hidden}
 .stage-badge-effect{margin-top:3px;font-size:10px;color:#a9aeb6;line-height:1.4}
 .stage-grid{display:flex;flex-wrap:wrap;gap:14px}
 
-/* ── 카드 컴포넌트 ── */
-.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
+/* ── 카드 컴포넌트 (전 카드 9:16 카드형) ── */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px}
 .card{
-  --card-accent:#555b66;
+  --card-accent:#555b66;aspect-ratio:9/16;display:flex;flex-direction:column;
   background:linear-gradient(145deg,#17191d,#101114);
   border:1px solid color-mix(in srgb,var(--card-accent) 55%,#343840);
   border-radius:15px;overflow:visible;position:relative;
@@ -86,64 +86,72 @@ main{padding:26px 32px 40px;overflow-x:hidden}
 .card.gold{border:1px solid #b99a59;box-shadow:inset 0 0 0 1px rgba(216,189,122,.13),0 8px 24px rgba(0,0,0,.4)}
 .card.red{border:1px solid #9d4248;box-shadow:inset 0 0 0 1px rgba(216,92,97,.13),0 8px 24px rgba(0,0,0,.4)}
 .card.gold.red{border:1px solid #c9a65d;box-shadow:inset 0 0 0 1px rgba(216,92,97,.25),inset 0 0 0 2px rgba(140,48,53,.13),0 12px 32px rgba(0,0,0,.45)}
-.art{aspect-ratio:1.55;position:relative;background:#202329;overflow:hidden;border-radius:14px 14px 0 0}
+.art{flex:0 0 44%;position:relative;background:#202329;overflow:hidden;border-radius:14px 14px 0 0}
 .art::after{content:"";position:absolute;inset:45% 0 0;background:linear-gradient(180deg,transparent,rgba(16,17,20,.92))}
 .art img{width:100%;height:100%;object-fit:cover;filter:saturate(.9) brightness(.8)}
-.cardbody{padding:13px;position:relative}
+.cardbody{flex:1;min-height:0;padding:13px;position:relative;display:flex;flex-direction:column}
 .tag{display:inline-block;border:1px solid #444952;border-radius:999px;padding:3px 8px;font-size:10px;color:#bfc4cb;margin-bottom:8px;background:rgba(16,18,22,.55)}
 .tag + .tag{margin-left:6px}
 .ctitle{font-size:17px;font-weight:850}
 .artist{font-size:11px;color:#7f858f;margin-top:3px}
-.effect{font-size:12px;color:#a9aeb6;line-height:1.55;margin-top:11px;margin-bottom:2px}
+.effect{font-size:12px;color:#a9aeb6;line-height:1.55;margin-top:11px;margin-bottom:2px;overflow:hidden}
 .badge{position:absolute;right:10px;top:10px;z-index:3;font-size:9px;letter-spacing:.06em;padding:4px 7px;border-radius:999px;background:rgba(9,10,12,.85);border:1px solid rgba(255,255,255,.14);color:#d7d9dd}
 .card.gold .gold-badge{color:#d8bb75;border-color:#9d8147}
 .card.red .red-badge{color:#e16a70;border-color:#8e383e}
 
 .mini-card{
   --card-accent:#555b66;
-  width:88px;border:1px solid color-mix(in srgb,var(--card-accent) 55%,#3a3e46);border-radius:9px;
+  width:98px;aspect-ratio:9/16;flex:0 0 auto;
+  border:1px solid color-mix(in srgb,var(--card-accent) 55%,#3a3e46);border-radius:10px;
   background:#25282d;overflow:visible;position:relative;transition:.16s;
+  display:flex;flex-direction:column;
 }
 .mini-card.gold{border-color:#b99a59}
 .mini-card.red{border-color:#9d4248}
 .mini-card.gold.red{border-color:#c9a65d}
 .mini-card.playable{cursor:pointer}
 .mini-card.playable:hover{transform:translateY(-10px);z-index:5}
-.mini-card.disabled{opacity:.4;cursor:not-allowed}
-.mini-card img{width:100%;height:60px;object-fit:cover;border-radius:8px 8px 0 0;display:block}
-.mini-card .mc{font-size:10px;padding:6px 7px 2px;font-weight:750}
+.mini-card.disabled{opacity:.55}
+.mini-card img{width:100%;height:38%;flex:0 0 auto;object-fit:cover;border-radius:9px 9px 0 0;display:block}
+.mc-body{flex:1;min-height:0;padding:6px 7px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.mc-tags{display:flex;flex-wrap:wrap;gap:3px}
+.mc-tags .tag{padding:1px 5px;font-size:8px;margin:0}
+.mc-name{font-size:11px;font-weight:800;line-height:1.25}
+.mc-effect{
+  font-size:9px;color:#9aa0a9;line-height:1.4;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;
+}
 
-/* ── 필드(배틀/벤치 + 마법/함정 존) ── */
-.zone-row{display:flex;align-items:center;justify-content:space-between;gap:14px}
-.field-zone{display:flex;align-items:center;gap:14px;flex:1;min-width:0;flex-wrap:wrap;padding:2px}
-.battler-slot{width:80px;flex:0 0 auto}
-.active-slot .mini-card,.active-slot .empty-slot{width:88px}
+/* ── 필드: 배틀(1) → 벤치(BENCH_SIZE) → 마법/함정(SPELL_TRAP_ZONE_SIZE) 한 줄 ── */
+.zone-row{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.field-row{display:flex;align-items:center;gap:8px;flex:1;min-width:0;flex-wrap:wrap;padding:2px}
+.active-slot{position:relative}
+.active-slot .mini-card,.active-slot .empty-slot{
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--card-accent,var(--gold)) 70%,transparent);
+}
 .battler-slot.empty-slot{
-  height:100px;border:1px dashed #3a3e46;border-radius:9px;display:grid;place-items:center;
+  width:98px;aspect-ratio:9/16;border:1px dashed #3a3e46;border-radius:10px;display:grid;place-items:center;
   color:#585d66;font-size:10px;background:rgba(255,255,255,.02);flex:0 0 auto;
 }
-.bench-row{display:flex;gap:6px}
-.battler-tile .hp-bar{height:4px;margin:2px 7px 0;background:#101216;border-radius:3px;overflow:hidden}
+.battler-tile .hp-bar{height:4px;margin:0 7px;background:#101216;border-radius:3px;overflow:hidden}
 .battler-tile .hp-bar-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .2s}
-.battler-tile .battler-hp{font-size:9px;color:#9aa0a9;padding:2px 7px 6px;font-weight:700}
+.battler-tile .battler-hp{font-size:9px;color:#9aa0a9;padding:3px 7px 6px;font-weight:700}
 
-.spelltrap-row{display:flex;justify-content:center;gap:8px;padding:4px 0}
-.spelltrap-tile{width:74px}
-.spelltrap-tile img{height:48px}
-.spelltrap-turns{font-size:9px;color:var(--gold);padding:0 6px 6px;font-weight:700}
+.spelltrap-tile{border-color:color-mix(in srgb,var(--gold) 45%,#3a3e46)}
+.spelltrap-turns{font-size:9px;color:var(--gold);padding:0 7px 6px;font-weight:700}
 
-/* ── 덱/무덤 카드 뭉치 ── */
-.stack-pair{display:flex;gap:10px;flex:0 0 auto}
-.card-stack{width:52px;text-align:center}
-.stack-layers{position:relative;width:52px;height:70px}
+/* ── 덱/무덤 카드 뭉치 (세로 배치, 확대) ── */
+.stack-pair{display:flex;flex-direction:column;gap:12px;flex:0 0 auto}
+.card-stack{width:72px;text-align:center}
+.stack-layers{position:relative;width:72px;height:100px}
 .stack-layer{
-  position:absolute;inset:0;border-radius:6px;
+  position:absolute;inset:0;border-radius:8px;
   background:linear-gradient(160deg,#2a2d33,#111216);border:1px solid #3a3e46;
-  transform:translate(calc(var(--i) * 2px),calc(var(--i) * -2px));
+  transform:translate(calc(var(--i) * 3px),calc(var(--i) * -3px));
   box-shadow:0 3px 8px rgba(0,0,0,.35);
 }
-.card-stack.empty .stack-layers{border:1px dashed #3a3e46;border-radius:6px}
-.stack-label{margin-top:5px;font-size:10px;color:#8f95a0;font-weight:700}
+.card-stack.empty .stack-layers{border:1px dashed #3a3e46;border-radius:8px}
+.stack-label{margin-top:6px;font-size:11px;color:#8f95a0;font-weight:700}
 
 /* ── 정보 팝업(툴팁) ── */
 .info-pop{
@@ -157,6 +165,8 @@ main{padding:26px 32px 40px;overflow-x:hidden}
 .info-pop.pop-visible{
   opacity:1;visibility:visible;pointer-events:auto;transition-delay:1s;cursor:pointer;
 }
+/* 손패 카드 좌클릭처럼 즉시 띄워야 하는 경우, 호버용 1초 지연을 상쇄한다. */
+.info-pop.pop-instant.pop-visible{transition-delay:0s}
 .info-pop-art{width:100%;aspect-ratio:1.6;object-fit:cover;border-radius:8px;display:block;background:#0c0c10}
 .art-source{font-size:10px;color:#6b7078;margin:-6px 0 10px;text-align:right}
 .info-pop h4{margin:0 0 4px;font-size:17px;font-weight:800}
@@ -171,12 +181,17 @@ main{padding:26px 32px 40px;overflow-x:hidden}
 .info-pop[data-page="0"] .pop-page-0{display:block}
 .info-pop[data-page="1"] .pop-page-1{display:block}
 .info-pop .pop-hint{margin-top:10px;font-size:10px;color:#5f6570;text-align:center}
+.info-pop .pop-play-btn{margin-top:12px;padding:10px}
+.info-pop .pop-play-reason{
+  margin-top:12px;padding:9px 10px;border-radius:8px;background:rgba(216,92,97,.1);
+  border:1px solid rgba(216,92,97,.3);color:#d89a9d;font-size:11px;text-align:center;
+}
 
 /* ── P카드 인트로 오버레이 ── */
 .stage-intro-overlay{
   position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:14px;background:rgba(8,9,11,.86);
-  animation:stage-intro-fade 1.4s ease forwards;
+  animation:stage-intro-fade 2s ease forwards;
 }
 .stage-intro-label{font-size:16px;letter-spacing:.06em;color:#c8ccd2}
 .stage-intro-card{
