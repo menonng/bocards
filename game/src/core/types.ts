@@ -54,7 +54,11 @@ export type SongEffect =
   | { kind: "installReviveOnceOnDeath" }
   | { kind: "markReviveOnceInGraveyard" }
   | { kind: "stealRandomCard" }
-  | { kind: "drawWithSelfDuplicateChance"; amount: number; duplicateChance: number };
+  | { kind: "drawWithSelfDuplicateChance"; amount: number; duplicateChance: number }
+  | { kind: "forceOpponentDiscard"; amount: number }
+  | { kind: "damageAndGainExtraMainPlay"; amount: number; extraPlays: number }
+  | { kind: "damageBonusIfOpponentLowHp"; amount: number; threshold: number; bonus: number }
+  | { kind: "gambleDamageOrDraw"; damage: number; draw: number };
 
 export interface SongCardDef {
   id: string;

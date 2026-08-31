@@ -39,6 +39,16 @@ export const GUEST_PRODUCERS: ProducerInfo[] = [
   { id: "satsuki", nameKo: "사츠키", nameOriginal: "サツキ", accent: "#c94a8a" },
   { id: "yukopi", nameKo: "유코피", nameOriginal: "ゆこぴ", accent: "#c9c14a" },
   { id: "kikuo", nameKo: "키쿠오", nameOriginal: "きくお", accent: "#7a5ca6" },
+  { id: "balloon", nameKo: "바르운", nameOriginal: "バルーン", accent: "#5c8f9c" },
+  { id: "kanzakiiori", nameKo: "칸자키 이오리", nameOriginal: "カンザキイオリ", accent: "#4a5a6e" },
+  { id: "chinozo", nameKo: "Chinozo", nameOriginal: "Chinozo", accent: "#c95c9c" },
+  { id: "kanaria", nameKo: "카나리아", nameOriginal: "Kanaria", accent: "#c9a03a" },
+  { id: "nuyuri", nameKo: "누유리", nameOriginal: "ぬゆり", accent: "#6a6fae" },
+  { id: "hiiragimagnetite", nameKo: "히이라기 마그네타이트", nameOriginal: "柊マグネタイト", accent: "#8a3a3a" },
+  { id: "amala", nameKo: "아마라", nameOriginal: "雨良", accent: "#4a8ac9" },
+  { id: "junky", nameKo: "정키", nameOriginal: "Junky", accent: "#c9784a" },
+  { id: "trapchick", nameKo: "TRAP CHICK", nameOriginal: "TRAP CHICK", accent: "#c9c14a" },
+  { id: "abm", nameKo: "뭐든지모에화", nameOriginal: "何でも萌え化", accent: "#c94a6e" },
 ];
 
 // wowaka: 롤링걸 참고 이미지의 그레이·모노톤 서클 패턴 무드로 통일

@@ -732,6 +732,44 @@ function resolveEffect(
       }
       break;
     }
+    case "forceOpponentDiscard": {
+      s = updatePlayer(s, target, (p) => randomDiscard(p, effect.amount));
+      s = withLog(s, `${state.players[target].name}이(가) 강제로 카드를 버렸습니다.`);
+      break;
+    }
+    case "damageAndGainExtraMainPlay": {
+      const total = effect.amount + actorPlayer.nextVocalDamageBonus + vocalSynergy;
+      s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
+      s = dealDamage(s, target, total, "vocal");
+      s = updatePlayer(s, actor, (p) => ({
+        ...p,
+        mainPlaysRemaining: p.mainPlaysRemaining + effect.extraPlays,
+      }));
+      break;
+    }
+    case "damageBonusIfOpponentLowHp": {
+      const targetPlayer = s.players[target];
+      const total =
+        effect.amount +
+        (targetPlayer.popularity <= effect.threshold ? effect.bonus : 0) +
+        actorPlayer.nextVocalDamageBonus +
+        vocalSynergy;
+      s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
+      s = dealDamage(s, target, total, "vocal");
+      break;
+    }
+    case "gambleDamageOrDraw": {
+      if (Math.random() < 0.5) {
+        const total = effect.damage + actorPlayer.nextVocalDamageBonus + vocalSynergy;
+        s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
+        s = dealDamage(s, target, total, "vocal");
+        s = withLog(s, `순식간에 퍼져나가듯, 상대에게 그대로 꽂혔다!`);
+      } else {
+        s = updatePlayer(s, actor, (p) => drawN(p, effect.draw, actor));
+        s = withLog(s, `혼돈 속에서 오히려 힌트를 얻었다.`);
+      }
+      break;
+    }
   }
 
   return finalizeIfGameOver(s);

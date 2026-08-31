@@ -55,6 +55,14 @@ export function effectText(effect: SongEffect): string {
         `카드 ${effect.amount}장 드로우 (각 장마다 ${Math.round(effect.duplicateChance * 100)}% 확률로 ` +
         `이 카드의 사본으로 대체) · 사용 후 무덤에 가지 않고 손으로 돌아옴(재사용 가능)`
       );
+    case "forceOpponentDiscard":
+      return `상대가 손패에서 무작위로 카드 ${effect.amount}장을 버림`;
+    case "damageAndGainExtraMainPlay":
+      return `상대 체력 ${effect.amount} 감소, 이번 턴에 공격/효과(지속형) 카드를 ${effect.extraPlays}장 더 낼 수 있음`;
+    case "damageBonusIfOpponentLowHp":
+      return `상대 체력 ${effect.amount} 감소 (상대 체력이 ${effect.threshold} 이하면 +${effect.bonus})`;
+    case "gambleDamageOrDraw":
+      return `50% 확률로 상대 체력 ${effect.damage} 감소, 50% 확률로 카드 ${effect.draw}장 드로우`;
   }
 }
 
