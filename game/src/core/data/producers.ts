@@ -10,12 +10,42 @@ import { ProducerInfo } from "../types.js";
 // unavatar.io(공개 아바타 프록시 서비스)를 통해 해당 계정의 현재 프로필
 // 사진을 실시간으로 미리보기하고, 실패하면 오리지널 배지로 자동 대체한다.
 export const PRODUCERS: ProducerInfo[] = [
-  { id: "deco27", nameKo: "DECO*27", nameOriginal: "DECO*27", accent: "#d1445a", twitterHandle: "DECO27" },
-  { id: "hachi", nameKo: "하치", nameOriginal: "ハチ", accent: "#6f8fae", twitterHandle: "hachi_08" },
-  { id: "wowaka", nameKo: "wowaka", nameOriginal: "wowaka", accent: "#8890a0", twitterHandle: "wowaka" },
-  { id: "iyowa", nameKo: "이요와", nameOriginal: "いよわ", accent: "#c9714a", twitterHandle: "igusuri_please" },
+  {
+    id: "deco27",
+    nameKo: "DECO*27",
+    nameOriginal: "DECO*27",
+    accent: "#d1445a",
+    twitterHandle: "DECO27",
+  },
+  {
+    id: "hachi",
+    nameKo: "하치",
+    nameOriginal: "ハチ",
+    accent: "#6f8fae",
+    twitterHandle: "hachi_08",
+  },
+  {
+    id: "wowaka",
+    nameKo: "wowaka",
+    nameOriginal: "wowaka",
+    accent: "#8890a0",
+    twitterHandle: "wowaka",
+  },
+  {
+    id: "iyowa",
+    nameKo: "이요와",
+    nameOriginal: "いよわ",
+    accent: "#c9714a",
+    twitterHandle: "igusuri_please",
+  },
   { id: "tak", nameKo: "Tak", nameOriginal: "TAK", accent: "#5cb3d9", twitterHandle: "TAK_DRDR" },
-  { id: "mang50", nameKo: "50mang", nameOriginal: "50mang(쏘망)", accent: "#8a6fae", twitterHandle: "50mang_" },
+  {
+    id: "mang50",
+    nameKo: "50mang",
+    nameOriginal: "50mang(쏘망)",
+    accent: "#8a6fae",
+    twitterHandle: "50mang_",
+  },
 ];
 
 // 무대 카드는 없지만("게스트") 신화입성곡/유튜브 1억뷰곡을 곡 카드로 등록하기 위해
@@ -31,7 +61,12 @@ export const GUEST_PRODUCERS: ProducerInfo[] = [
   { id: "p40m", nameKo: "40mP", nameOriginal: "40mP", accent: "#9199a6" },
   { id: "rerulili", nameKo: "레루리리", nameOriginal: "Rerulili", accent: "#c9534a" },
   { id: "p164", nameKo: "164", nameOriginal: "164", accent: "#6fae8a" },
-  { id: "irohasasaki", nameKo: "이로하(사사키)", nameOriginal: "イロハ(sasaki)", accent: "#a65c5c" },
+  {
+    id: "irohasasaki",
+    nameKo: "이로하(사사키)",
+    nameOriginal: "イロハ(sasaki)",
+    accent: "#a65c5c",
+  },
   { id: "doriko", nameKo: "도리코", nameOriginal: "doriko", accent: "#c98a4a" },
   { id: "mikitop", nameKo: "미키토P", nameOriginal: "mikitoP", accent: "#4a9ac9" },
   { id: "kairikibear", nameKo: "카이리키베어", nameOriginal: "カイリキベア", accent: "#5c7a4a" },
@@ -44,7 +79,12 @@ export const GUEST_PRODUCERS: ProducerInfo[] = [
   { id: "chinozo", nameKo: "Chinozo", nameOriginal: "Chinozo", accent: "#c95c9c" },
   { id: "kanaria", nameKo: "카나리아", nameOriginal: "Kanaria", accent: "#c9a03a" },
   { id: "nuyuri", nameKo: "누유리", nameOriginal: "ぬゆり", accent: "#6a6fae" },
-  { id: "hiiragimagnetite", nameKo: "히이라기 마그네타이트", nameOriginal: "柊マグネタイト", accent: "#8a3a3a" },
+  {
+    id: "hiiragimagnetite",
+    nameKo: "히이라기 마그네타이트",
+    nameOriginal: "柊マグネタイト",
+    accent: "#8a3a3a",
+  },
   { id: "amala", nameKo: "아마라", nameOriginal: "雨良", accent: "#4a8ac9" },
   { id: "junky", nameKo: "정키", nameOriginal: "Junky", accent: "#c9784a" },
   { id: "trapchick", nameKo: "TRAP CHICK", nameOriginal: "TRAP CHICK", accent: "#c9c14a" },

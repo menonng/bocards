@@ -69,12 +69,9 @@ export function effectText(effect: SongEffect): string {
 export function cardTypeLabel(type: SongCardDef["type"]): string {
   switch (type) {
     case "vocal":
-      return "공격";
-    case "support":
+      return "보컬";
+    case "item":
       return "아이템";
-    case "story":
-    case "chorus":
-      return "효과";
   }
 }
 
@@ -82,7 +79,9 @@ export function cardTypeLabel(type: SongCardDef["type"]): string {
 export function recordText(def: SongCardDef): string | null {
   const parts: string[] = [];
   if (def.isMyth) {
-    parts.push(`VOCALOID 신화입성(니코니코 1,000만 재생)${def.mythDate ? ` · ${def.mythDate}` : ""}`);
+    parts.push(
+      `VOCALOID 신화입성(니코니코 1,000만 재생)${def.mythDate ? ` · ${def.mythDate}` : ""}`,
+    );
   }
   if (def.youtube100M) {
     parts.push("유튜브 누적 1억 회 재생");

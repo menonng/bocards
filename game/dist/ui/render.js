@@ -1,8 +1,8 @@
 import { SONG_CARDS } from "../core/data/songCards.js";
 import { STAGE_CARDS } from "../core/data/stageCards.js";
-import { getSongDef, canPlayCard, DEFAULT_DECK_RATIO } from "../core/engine.js";
+import { getSongDef, canPlayCard, DEFAULT_DECK_RATIO, BENCH_SIZE } from "../core/engine.js";
 import { getProducer } from "../core/data/producers.js";
-import { cardArtDataUri, producerBadgeDataUri, twitterAvatarUrl, youtubeThumbnailUrl } from "./cardArt.js";
+import { cardArtDataUri, producerBadgeDataUri, twitterAvatarUrl, youtubeThumbnailUrl, } from "./cardArt.js";
 import { cardTypeLabel, effectText, rarityLabel, recordText } from "./cardText.js";
 const HUMAN = 0;
 const AI = 1;
@@ -66,6 +66,7 @@ function songTooltipHtml(def) {
       <div class="details">
         <b>작곡가</b> ${producer.nameKo}${def.releaseDate ? ` · <b>투고일</b> ${def.releaseDate}` : ""}
         ${record ? `<br><b>기록</b> ${record}` : ""}
+        ${def.type === "vocal" ? `<br><b>체력</b> ${def.hp}` : ""}
         <br><b>효과</b> ${effectText(def.effect)}
       </div>
       <div class="comment">${def.flavor}</div>
@@ -101,6 +102,7 @@ function songCardFull(def) {
       <div class="art">${imgTag(art, "")}</div>
       <div class="cardbody">
         <span class="tag">${cardTypeLabel(def.type)}</span>
+        ${def.type === "vocal" ? `<span class="tag">♥ ${def.hp}</span>` : ""}
         <div class="ctitle">${def.nameKo}</div>
         <div class="artist">${producer.nameKo}${def.reusable ? " · 재사용가능" : ""}</div>
         <div class="effect">${effectText(def.effect)}</div>
@@ -131,6 +133,53 @@ function miniCard(card, playable, reason, onClick) {
     if (playable)
         node.addEventListener("click", onClick);
     return node;
+}
+/** 필드(배틀/벤치)에 놓인 보컬 카드 1장 — 체력바 포함. */
+function battlerTile(battler, opts = {}) {
+    const def = getSongDef(battler.defId);
+    const producer = getProducer(def.producerId);
+    const art = songArt(def, producer);
+    const borderClasses = [def.isMyth ? "gold" : "", def.youtube100M ? "red" : ""]
+        .filter(Boolean)
+        .join(" ");
+    const pct = Math.max(0, Math.min(100, Math.round((battler.currentHp / battler.maxHp) * 100)));
+    const node = el(`
+    <div class="mini-card battler-tile ${borderClasses} ${opts.clickable ? "playable" : ""}"
+         style="--card-accent:${producer.accent}">
+      ${imgTag(art, "")}
+      <div class="mc">${def.nameKo}</div>
+      <div class="hp-bar"><div class="hp-bar-fill" style="width:${pct}%"></div></div>
+      <div class="battler-hp">♥ ${battler.currentHp}/${battler.maxHp}</div>
+      ${songTooltipHtml(def)}
+    </div>
+  `);
+    attachHoverFlip(node);
+    if (opts.clickable && opts.onClick)
+        node.addEventListener("click", opts.onClick);
+    return node;
+}
+function emptyBattlerSlot(label) {
+    return el(`<div class="battler-slot empty-slot">${label}</div>`);
+}
+/** 한 플레이어의 배틀(1) + 벤치(BENCH_SIZE) 자리를 그린다. */
+function fieldZone(state, index, canSwitch, handlers) {
+    const p = state.players[index];
+    const wrap = el(`<div class="field-zone"></div>`);
+    const activeWrap = el(`<div class="battler-slot active-slot"></div>`);
+    activeWrap.appendChild(p.activeBattler ? battlerTile(p.activeBattler) : emptyBattlerSlot("배틀 자리"));
+    wrap.appendChild(activeWrap);
+    const benchWrap = el(`<div class="bench-row"></div>`);
+    for (const b of p.benchBattlers) {
+        benchWrap.appendChild(battlerTile(b, {
+            clickable: canSwitch,
+            onClick: canSwitch ? () => handlers.onSwitchActive(b.instanceId) : undefined,
+        }));
+    }
+    for (let i = p.benchBattlers.length; i < BENCH_SIZE; i++) {
+        benchWrap.appendChild(emptyBattlerSlot("벤치"));
+    }
+    wrap.appendChild(benchWrap);
+    return wrap;
 }
 function stageBadge(stageId) {
     const stage = STAGE_CARDS.find((s) => s.id === stageId);
@@ -177,8 +226,8 @@ function shell(screen, title, content, onNav) {
 }
 // ── 덱 설정 화면 ─────────────────────────────────────────────
 function defaultPercent(ratio, key) {
-    const total = ratio.attack + ratio.item + ratio.effect;
-    return total > 0 ? Math.round((ratio[key] / total) * 100) : 33;
+    const total = ratio.vocal + ratio.item;
+    return total > 0 ? Math.round((ratio[key] / total) * 100) : 50;
 }
 export function renderDeckScreen(handlers) {
     const stageNames = STAGE_CARDS.map((s) => `<span class="stage-name-chip">${s.nameKo}</span>`).join("");
@@ -188,12 +237,11 @@ export function renderDeckScreen(handlers) {
         <h3>70장 무작위 덱</h3>
         <p style="color:#8f95a0;font-size:13px;line-height:1.7">
           현존하는 곡 카드 풀에서 무작위로 70장을 뽑아 덱을 만듭니다. 아래 비율을 정하면
-          공격/아이템/효과 카드가 그 비율에 가깝게 섞여 들어갑니다 (합이 100이 아니어도 자동 환산).
+          보컬/아이템 카드가 그 비율에 가깝게 섞여 들어갑니다 (합이 100이 아니어도 자동 환산).
         </p>
         <div class="distribution">
-          <div class="sliderrow"><span>공격</span><input type="number" min="0" max="100" id="ratio-attack" value="${defaultPercent(DEFAULT_DECK_RATIO, "attack")}"><span class="num">%</span></div>
+          <div class="sliderrow"><span>보컬</span><input type="number" min="0" max="100" id="ratio-vocal" value="${defaultPercent(DEFAULT_DECK_RATIO, "vocal")}"><span class="num">%</span></div>
           <div class="sliderrow"><span>아이템</span><input type="number" min="0" max="100" id="ratio-item" value="${defaultPercent(DEFAULT_DECK_RATIO, "item")}"><span class="num">%</span></div>
-          <div class="sliderrow"><span>효과</span><input type="number" min="0" max="100" id="ratio-effect" value="${defaultPercent(DEFAULT_DECK_RATIO, "effect")}"><span class="num">%</span></div>
         </div>
 
         <div class="setup-row" style="margin-top:18px">
@@ -217,9 +265,13 @@ export function renderDeckScreen(handlers) {
         <div class="log">
           이 프로토타입은 AI 상대와의 1인 대전만 지원합니다. 재생 포인트 같은
           자원 시스템은 없습니다 — 체력만 신경 쓰면 됩니다.<br><br>
-          · 공격 카드를 내면 그 즉시 자신의 턴이 끝납니다.<br>
+          · 보컬 카드는 배틀(1자리)·벤치(최대 ${BENCH_SIZE}자리)에 소환하는 카드입니다. 소환은
+          메인 발동 횟수를 소모합니다.<br>
+          · 배틀 자리의 보컬만 스킬을 쓸 수 있고, 스킬을 쓰면 그 즉시 턴이 끝납니다.<br>
+          · 배틀 카드가 쓰러지면 벤치에서 자동으로 승격됩니다 — 배틀·벤치에 모두
+          보컬 카드가 없으면 그 즉시 패배합니다.<br>
           · 아이템 카드는 손패에 있는 한 몇 장이든 낼 수 있습니다.<br>
-          · 효과 카드 중 일부(코러스)는 상대 턴에도 반응으로 낼 수 있습니다.
+          · 아이템 카드 중 일부는 상대 턴에도 반응으로 낼 수 있습니다.
         </div>
       </div>
     </div>
@@ -229,9 +281,8 @@ export function renderDeckScreen(handlers) {
         const mode = content.querySelector("#mode-select").value;
         const val = (id) => Math.max(0, Number(content.querySelector(`#${id}`).value) || 0);
         const ratio = {
-            attack: val("ratio-attack"),
+            vocal: val("ratio-vocal"),
             item: val("ratio-item"),
-            effect: val("ratio-effect"),
         };
         handlers.onStartGame({ name, mode, ratio });
     });
@@ -274,18 +325,21 @@ export function renderBattleScreen(state, handlers) {
     content.appendChild(side);
     const stageId = state.activeStageCardIds[0];
     const isReaction = state.phase === "reaction";
-    const isHumanTurn = (state.phase === "main" && state.activePlayerIndex === HUMAN) ||
-        (isReaction && state.activePlayerIndex === AI);
+    const isHumanMainTurn = state.phase === "main" && state.activePlayerIndex === HUMAN;
+    const isHumanTurn = isHumanMainTurn || (isReaction && state.activePlayerIndex === AI);
+    const human = state.players[HUMAN];
+    const canSwitch = isHumanMainTurn && !human.switchedActiveThisTurn;
     board.appendChild(el(`<div class="side-stat"><span>OPPONENT / ${state.players[AI].name}</span><span class="hp">♥ ${state.players[AI].popularity}</span></div>`));
+    board.appendChild(fieldZone(state, AI, false, handlers));
     const stageWrap = el(`<div class="arena"></div>`);
     if (stageId)
         stageWrap.appendChild(stageBadge(stageId));
     const turnLabel = el(`<div class="turn">${state.phase === "gameover" ? "게임 종료" : isReaction ? (isHumanTurn ? "당신의 반응 구간" : "상대의 반응 구간") : state.activePlayerIndex === HUMAN ? "당신의 턴" : "상대의 턴"} · 턴 ${state.turnNumber}</div>`);
     stageWrap.appendChild(turnLabel);
     board.appendChild(stageWrap);
-    board.appendChild(el(`<div class="side-stat"><span>YOU / ${state.players[HUMAN].name}</span><span class="hp">♥ ${state.players[HUMAN].popularity}</span></div>`));
+    board.appendChild(fieldZone(state, HUMAN, canSwitch, handlers));
+    board.appendChild(el(`<div class="side-stat"><span>YOU / ${human.name}</span><span class="hp">♥ ${human.popularity}</span></div>`));
     const handRow = el(`<div class="hand"></div>`);
-    const human = state.players[HUMAN];
     for (const card of human.hand) {
         const check = canPlayCard(state, HUMAN, card.instanceId);
         handRow.appendChild(miniCard(card, check.ok && isHumanTurn, check.reason, () => handlers.onPlayCard(card.instanceId)));
@@ -296,13 +350,16 @@ export function renderBattleScreen(state, handlers) {
       <div class="panel">
         <h3>ACTIONS</h3>
         <div class="resource">
-          <div class="res"><b>${human.mainPlaysRemaining}</b><small>남은 메인 발동</small></div>
+          <div class="res"><b>${human.mainPlaysRemaining}</b><small>남은 소환 횟수</small></div>
         </div>
+        ${isHumanMainTurn && human.activeBattler
+        ? `<button class="action" id="skill-btn" style="margin-top:10px">스킬 사용: ${getSongDef(human.activeBattler.defId).nameKo}</button>`
+        : ""}
       </div>
     `));
     side.appendChild(el(`
       <div class="panel">
-        <h3>FIELD</h3>
+        <h3>지속 효과 / 덱</h3>
         <div class="log">
           <b>나의 효과</b> ${fieldSummary(state, HUMAN)}<br>
           <b>상대 효과</b> ${fieldSummary(state, AI)}<br>
@@ -326,7 +383,7 @@ export function renderBattleScreen(state, handlers) {
     else if (isReaction && isHumanTurn) {
         side.appendChild(el(`<button class="action" id="pass-btn">패스 (반응하지 않음)</button>`));
     }
-    else if (state.phase === "main" && state.activePlayerIndex === HUMAN) {
+    else if (isHumanMainTurn) {
         side.appendChild(el(`<button class="action" id="end-turn-btn">턴 종료</button>`));
     }
     else {
@@ -336,6 +393,7 @@ export function renderBattleScreen(state, handlers) {
         content.appendChild(revealModal(state, handlers));
     }
     const root = shell("battle", "대전", content, handlers.onNav);
+    root.querySelector("#skill-btn")?.addEventListener("click", handlers.onUseSkill);
     root.querySelector("#end-turn-btn")?.addEventListener("click", handlers.onEndTurn);
     root.querySelector("#pass-btn")?.addEventListener("click", handlers.onPassReaction);
     root.querySelector("#restart-btn")?.addEventListener("click", handlers.onRestart);
@@ -343,8 +401,9 @@ export function renderBattleScreen(state, handlers) {
 }
 function revealModal(state, handlers) {
     const reveal = state.revealedHand;
-    const cardsHtml = reveal.cards.map((c) => `<div class="mini-card-flat">${getSongDef(c.defId).nameKo}</div>`).join("") ||
-        "<span class='muted'>손패 없음</span>";
+    const cardsHtml = reveal.cards
+        .map((c) => `<div class="mini-card-flat">${getSongDef(c.defId).nameKo}</div>`)
+        .join("") || "<span class='muted'>손패 없음</span>";
     const node = el(`
     <div class="modal-overlay">
       <div class="modal-box">

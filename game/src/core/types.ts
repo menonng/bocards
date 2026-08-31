@@ -5,14 +5,15 @@
 // 직렬화 가능한(JSON-safe) 구조로만 설계한다.
 // ─────────────────────────────────────────────────────────────
 
-// 내부 타입 값은 그대로 두고(엔진 로직 재사용), 사용자에게 보여지는 이름만
-// 포켓몬 카드게임(+유희왕 일부) 방식으로 통일한다:
-//   vocal   → "공격" (Attack)  — 발동하면 그 즉시 자신의 턴이 끝난다
-//   support → "아이템" (Item) — 보통 1회용, 턴당 여러 장 낼 수 있다
-//   story / chorus → "효과" (Effect) — 지속효과(story)와 반응형(chorus)을
-//     묶어 "효과 카드"로 부른다. story는 유희왕 필드/지속 마법에 가깝고,
-//     chorus는 유희왕 함정 카드(상대 턴에도 발동 가능)에 가깝다.
-export type CardType = "vocal" | "support" | "story" | "chorus";
+// 포켓몬 카드게임의 실제 필드 구조(배틀 포켓몬/벤치 포켓몬)를 본떠 유형을
+// 2종으로 재구성했다:
+//   vocal → "보컬" — 필드(배틀/벤치)에 내는, 자체 체력(hp)과 스킬(effect)을
+//     가진 카드. 배틀 자리의 보컬만 스킬을 쓸 수 있고, 스킬을 쓰면 그 즉시
+//     자신의 턴이 끝난다(기존 "공격하면 턴 종료" 규칙 계승).
+//   item → "아이템" — 그 외 전부(구 서포트/스토리/효과-지속/효과-반응) 통합.
+//     손패에 있는 한 턴당 여러 장 낼 수 있다. 반응 구간 발동 가능 여부는
+//     이제 타입이 아니라 개별 카드의 reactionPlayable 플래그로 판정한다.
+export type CardType = "vocal" | "item";
 export type Rarity = "common" | "rare" | "legendary";
 
 export interface ProducerInfo {
@@ -72,6 +73,11 @@ export interface SongCardDef {
   /** 유튜브 1억 회 재생 달성 여부 (신화입성과 별개 기준) */
   youtube100M?: boolean;
   effect: SongEffect;
+  /** vocal 카드만: 필드(배틀/벤치)에 놓였을 때의 기본 체력. */
+  hp?: number;
+  /** item 카드만: 반응 구간(상대 턴)에도 낼 수 있는지. 없으면 자신의 메인
+   *  구간에서만 낼 수 있다 (구 "코러스" 타입의 자리를 대신한다). */
+  reactionPlayable?: boolean;
   /** true면 발동 후 무덤으로 가지 않고 바로 손으로 돌아온다 (예: 롤링 걸) */
   reusable?: boolean;
   /** 원곡 투고일 (YYYY-MM-DD). 확인되지 않은 곡은 생략. */
@@ -89,7 +95,7 @@ export interface SongCardDef {
 
 /** 무대 카드(P카드)가 게임 전체에 적용하는 공용 규칙 수정치 */
 export interface StageModifiers {
-  allSupportEffectBonus?: number;
+  allItemEffectBonus?: number;
   allVocalDamageBonus?: number;
   startPopularityDelta?: number;
   storyDurationDelta?: number;
@@ -129,6 +135,14 @@ export interface FieldStory {
   reviveOnDeathAvailable?: boolean;
 }
 
+/** 필드(배틀/벤치)에 놓인 보컬 카드 1장의 런타임 상태 */
+export interface FieldBattler {
+  instanceId: string;
+  defId: string;
+  currentHp: number;
+  maxHp: number;
+}
+
 export interface PlayerState {
   name: string;
   /** 한눈에 보이는 유일한 스탯 "체력"(구 "인기도"). 0이 되면 패배. UI에는 항상 "체력"으로 표기한다. */
@@ -138,15 +152,21 @@ export interface PlayerState {
   deck: CardInstance[];
   graveyard: CardInstance[];
   fieldStories: FieldStory[];
+  /** 배틀 자리(1장) — 스킬을 쓸 수 있는 유일한 보컬 카드. */
+  activeBattler: FieldBattler | null;
+  /** 벤치 자리(최대 BENCH_SIZE장) — 교체 대기 중인 보컬 카드. */
+  benchBattlers: FieldBattler[];
+  /** 이번 자신 턴에 이미 교체(배틀↔벤치)를 했는지 (턴당 1회 무료 제한) */
+  switchedActiveThisTurn: boolean;
   /** 이번 자신 턴에 이미 곡 카드를 발동했는지 (표리 러버즈 판정용) */
   playedSongThisTurn: boolean;
-  /** 이번 턴에 사용 가능한 메인 카드 발동 횟수 */
+  /** 이번 턴에 사용 가능한 메인 카드 발동 횟수 (보컬 소환에만 소모된다) */
   mainPlaysRemaining: number;
   /** 다음 보컬 카드에 적용될 데미지 보너스 (서포트 카드가 부여) */
   nextVocalDamageBonus: number;
   /** 턴 종료 시 자신에게 들어올 체력 감소 (고스트 룰 대가) */
   pendingSelfDamageOnTurnEnd: number;
-  /** 다음에 낼 서포트/스토리 카드 효과가 무효화되는지 (살리에리) */
+  /** 다음에 낼 아이템 카드 효과가 무효화되는지 (살리에리) */
   negateNextSupportOrStory: boolean;
 }
 
@@ -176,11 +196,10 @@ export interface GameState {
   revealedHand: { ownerIndex: 0 | 1; cards: CardInstance[] } | null;
 }
 
-/** 덱을 구성할 때 공격/아이템/효과 카드를 각각 얼마의 비율로 뽑을지 (합이 0보다 크면 됨, 내부에서 정규화) */
+/** 덱을 구성할 때 보컬/아이템 카드를 각각 얼마의 비율로 뽑을지 (합이 0보다 크면 됨, 내부에서 정규화) */
 export interface DeckTypeRatio {
-  attack: number;
+  vocal: number;
   item: number;
-  effect: number;
 }
 
 export type GameAction =
@@ -200,6 +219,10 @@ export type GameAction =
       seed?: number;
     }
   | { type: "PLAY_CARD"; playerIndex: 0 | 1; instanceId: string }
+  /** 배틀 자리의 보컬 카드로 스킬을 사용한다. 그 즉시 턴이 끝난다. */
+  | { type: "USE_SKILL"; playerIndex: 0 | 1 }
+  /** 배틀 카드와 벤치 카드 1장을 맞바꾼다 (턴당 1회 무료). 턴은 끝나지 않는다. */
+  | { type: "SWITCH_ACTIVE"; playerIndex: 0 | 1; benchInstanceId: string }
   | { type: "END_TURN"; playerIndex: 0 | 1 }
   | { type: "PASS_REACTION"; playerIndex: 0 | 1 }
   | { type: "DISMISS_REVEAL" };

@@ -63,12 +63,9 @@ export function effectText(effect) {
 export function cardTypeLabel(type) {
     switch (type) {
         case "vocal":
-            return "공격";
-        case "support":
+            return "보컬";
+        case "item":
             return "아이템";
-        case "story":
-        case "chorus":
-            return "효과";
     }
 }
 /** 툴팁의 "기록" 줄 — 신화입성/1억뷰 여부를 사람이 읽는 문장으로 */

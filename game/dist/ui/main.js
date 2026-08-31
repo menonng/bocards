@@ -56,6 +56,8 @@ function render() {
             scheduleAiIfNeeded();
         },
         onPlayCard: (instanceId) => dispatch({ type: "PLAY_CARD", playerIndex: 0, instanceId }),
+        onUseSkill: () => dispatch({ type: "USE_SKILL", playerIndex: 0 }),
+        onSwitchActive: (benchInstanceId) => dispatch({ type: "SWITCH_ACTIVE", playerIndex: 0, benchInstanceId }),
         onEndTurn: () => dispatch({ type: "END_TURN", playerIndex: 0 }),
         onPassReaction: () => dispatch({ type: "PASS_REACTION", playerIndex: 0 }),
         onDismissReveal: () => dispatch({ type: "DISMISS_REVEAL" }),

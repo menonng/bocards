@@ -27,7 +27,7 @@ function getStageDef(id) {
 /** 현재 활성화된 무대 카드(들)의 수정치를 합산한다. */
 export function getActiveModifiers(state) {
     const total = {
-        allSupportEffectBonus: 0,
+        allItemEffectBonus: 0,
         allVocalDamageBonus: 0,
         startPopularityDelta: 0,
         storyDurationDelta: 0,
@@ -71,42 +71,29 @@ function shuffle(arr, rng) {
 }
 // ── 덱 구성: 카드 풀에서 70장을 무작위로 뽑는다 ────────────────
 //
-// 포켓몬 카드게임처럼 "공격/아이템/효과" 세 묶음으로 나눈 뒤, 플레이어가
-// 정한 비율(DeckTypeRatio)에 따라 묶음을 고르고, 그 묶음 안에서 카드 1장을
-// 균등 무작위로 뽑는다. 카드 풀(48장)보다 덱이 크므로(70장) 같은 카드가
-// 여러 장 들어갈 수 있지만, 레전더리(신화입성곡 등)는 덱당 1장으로 제한한다.
+// 포켓몬 카드게임처럼 "보컬/아이템" 두 묶음으로 나눈 뒤, 플레이어가 정한
+// 비율(DeckTypeRatio)에 따라 묶음을 고르고, 그 묶음 안에서 카드 1장을
+// 균등 무작위로 뽑는다. 카드 풀보다 덱이 크므로(70장) 같은 카드가 여러 장
+// 들어갈 수 있지만, 레전더리(신화입성곡 등)는 덱당 1장으로 제한한다.
 const DECK_SIZE = 70;
-function bucketOf(type) {
-    if (type === "vocal")
-        return "attack";
-    if (type === "support")
-        return "item";
-    return "effect"; // story | chorus
-}
+/** 벤치(교체 대기) 자리 최대 개수. 배틀 자리 1 + 벤치 = 필드 최대 카드 수. */
+export const BENCH_SIZE = 2;
 const BUCKET_CARDS = {
-    attack: SONG_CARDS.filter((c) => bucketOf(c.type) === "attack"),
-    item: SONG_CARDS.filter((c) => bucketOf(c.type) === "item"),
-    effect: SONG_CARDS.filter((c) => bucketOf(c.type) === "effect"),
+    vocal: SONG_CARDS.filter((c) => c.type === "vocal"),
+    item: SONG_CARDS.filter((c) => c.type === "item"),
 };
 /** 카드 풀의 실제 타입 분포를 그대로 따르는 기본 비율 (셋업 화면 초기값으로도 사용) */
 export const DEFAULT_DECK_RATIO = {
-    attack: BUCKET_CARDS.attack.length,
+    vocal: BUCKET_CARDS.vocal.length,
     item: BUCKET_CARDS.item.length,
-    effect: BUCKET_CARDS.effect.length,
 };
 function pickBucket(rng, ratio) {
-    const a = Math.max(0, ratio.attack);
+    const v = Math.max(0, ratio.vocal);
     const i = Math.max(0, ratio.item);
-    const e = Math.max(0, ratio.effect);
-    const total = a + i + e;
+    const total = v + i;
     if (total <= 0)
         return pickBucket(rng, DEFAULT_DECK_RATIO);
-    let r = rng() * total;
-    if ((r -= a) < 0)
-        return "attack";
-    if ((r -= i) < 0)
-        return "item";
-    return "effect";
+    return rng() * total < v ? "vocal" : "item";
 }
 function makeDeck(rng, ownerTag, ratio) {
     const instances = [];
@@ -143,6 +130,9 @@ function createPlayer(name, deck) {
         deck,
         graveyard: [],
         fieldStories: [],
+        activeBattler: null,
+        benchBattlers: [],
+        switchedActiveThisTurn: false,
         playedSongThisTurn: false,
         mainPlaysRemaining: 1,
         nextVocalDamageBonus: 0,
@@ -181,10 +171,7 @@ export function startGame(action) {
     const deck0 = makeDeck(rng, "p0", action.player0DeckRatio ?? DEFAULT_DECK_RATIO);
     const deck1 = makeDeck(rng, "p1", action.player1DeckRatio ?? DEFAULT_DECK_RATIO);
     let state = {
-        players: [
-            createPlayer(action.player0Name, deck0),
-            createPlayer(action.player1Name, deck1),
-        ],
+        players: [createPlayer(action.player0Name, deck0), createPlayer(action.player1Name, deck1)],
         activePlayerIndex: 0,
         turnNumber: 1,
         phase: "intro",
@@ -207,13 +194,45 @@ export function startGame(action) {
     // 오프닝 핸드
     state = updatePlayer(state, 0, (p) => drawN(p, OPENING_HAND_SIZE, 0));
     state = updatePlayer(state, 1, (p) => drawN(p, OPENING_HAND_SIZE, 1));
+    // 포켓몬 카드게임의 "배틀 자리에 베이직 포켓몬을 먼저 놓는다" 셋업과 같은
+    // 개념 — 시작부터 필드가 비어 있으면 "배틀·벤치 모두 없으면 패배" 규칙이
+    // 첫 턴부터 오작동하므로, 게임 시작 시 각자 보컬 카드 1장을 배틀 자리에
+    // 무료로 세운다(메인 발동 횟수를 소모하지 않는다).
+    state = updatePlayer(state, 0, (p) => setupInitialBattler(p, 0));
+    state = updatePlayer(state, 1, (p) => setupInitialBattler(p, 1));
     state = { ...state, log: [...state.log, describeStage(state)] };
     return runIntroAndDraw(state);
 }
+/** 손패(부족하면 덱을 더 뽑아서라도)에서 보컬 카드 1장을 찾아 배틀 자리에 세운다. */
+function setupInitialBattler(player, index) {
+    let p = player;
+    for (let tries = 0; tries < p.deck.length + p.hand.length + 1; tries++) {
+        const idx = p.hand.findIndex((c) => getSongDef(c.defId).type === "vocal");
+        if (idx !== -1) {
+            const card = p.hand[idx];
+            const def = getSongDef(card.defId);
+            return {
+                ...p,
+                hand: p.hand.filter((_, i) => i !== idx),
+                activeBattler: {
+                    instanceId: card.instanceId,
+                    defId: card.defId,
+                    currentHp: def.hp ?? 1,
+                    maxHp: def.hp ?? 1,
+                },
+            };
+        }
+        if (p.deck.length === 0)
+            break;
+        p = drawOne(p, index);
+    }
+    // 덱을 다 뒤져도 보컬 카드가 한 장도 없는 극단적 설정(보컬 비율 0%)이면
+    // 배틀 자리를 비워둔 채로 시작한다 — 이후 정상적으로 카드를 소환하기 전까지는
+    // 스킬을 쓸 수 없을 뿐, 즉시 패배로 이어지지는 않는다("격파" 시점에만 판정).
+    return p;
+}
 function describeStage(state) {
-    const names = state.activeStageCardIds
-        .map((id) => getStageDef(id).nameKo)
-        .join(", ");
+    const names = state.activeStageCardIds.map((id) => getStageDef(id).nameKo).join(", ");
     return `무대 카드: ${names}`;
 }
 function applyStartOfGameModifiers(player, mods) {
@@ -301,6 +320,7 @@ function runIntroAndDraw(state) {
         ...p,
         mainPlaysRemaining: 1 + mods.extraCardPlayPerTurn,
         playedSongThisTurn: false,
+        switchedActiveThisTurn: false,
     }));
     return { ...s, phase: "main" };
 }
@@ -329,6 +349,80 @@ function healPlayer(state, index, amount) {
     s = withLog(s, `${state.players[index].name}의 체력이 ${amount} 회복했습니다.`);
     return s;
 }
+/** 카드를 무덤으로 보낸다 — 단, 소유자에게 대기 중인 "윤회" 부활이 있으면
+ *  그 대신 카드를 손으로 돌려보낸다(1회용 소모). */
+function moveToGraveyardOrRevive(state, ownerIndex, card, cardNameKo) {
+    let s = state;
+    const reviveStoryIdx = s.players[ownerIndex].fieldStories.findIndex((story) => story.reviveOnDeathAvailable);
+    if (reviveStoryIdx !== -1) {
+        s = updatePlayer(s, ownerIndex, (p) => ({
+            ...p,
+            fieldStories: p.fieldStories.filter((_, i) => i !== reviveStoryIdx),
+            hand: [...p.hand, card],
+        }));
+        s = withLog(s, `윤회의 힘으로 [${cardNameKo}]가 손으로 돌아왔습니다.`);
+    }
+    else {
+        s = updatePlayer(s, ownerIndex, (p) => ({
+            ...p,
+            graveyard: [...p.graveyard, card],
+        }));
+    }
+    return s;
+}
+/** 스킬(보컬 카드의 공격)이 상대에게 주는 데미지. 유희왕/포켓몬처럼 상대의
+ *  "배틀 카드" 체력부터 깎는다. 배틀 카드가 쓰러지면(체력 0 이하) 그 카드는
+ *  무덤으로(또는 윤회로 손에) 이동하고, 남은 초과 데미지(overkill)는 그대로
+ *  상대 플레이어 체력으로 스며든다. 벤치에 대기 카드가 있으면 자동으로
+ *  배틀 자리로 승격되고, 배틀·벤치 모두 보컬 카드가 없어지면(그리고 윤회로도
+ *  구제되지 않았으면) 그 즉시 패배한다. */
+function dealSkillDamage(state, targetIndex, amount) {
+    const mods = getActiveModifiers(state);
+    const total = Math.max(0, amount + mods.allVocalDamageBonus);
+    const targetPlayerName = state.players[targetIndex].name;
+    const battler = state.players[targetIndex].activeBattler;
+    if (!battler)
+        return state; // 배틀 자리가 비어 있으면 데미지를 받을 대상이 없다
+    const def = getSongDef(battler.defId);
+    const newHp = battler.currentHp - total;
+    let s = state;
+    if (newHp > 0) {
+        s = updatePlayer(s, targetIndex, (p) => ({
+            ...p,
+            activeBattler: { ...battler, currentHp: newHp },
+        }));
+        s = withLog(s, `${targetPlayerName}의 [${def.nameKo}] 체력이 ${total} 감소했습니다. (남은: ${newHp}/${battler.maxHp})`);
+        return finalizeIfGameOver(s);
+    }
+    const overkill = -newHp;
+    s = withLog(s, `${targetPlayerName}의 [${def.nameKo}]이(가) 쓰러졌습니다!`);
+    const flags = def.effect.kind === "markReviveOnceInGraveyard" ? { revivePending: true } : undefined;
+    const hadReviveStory = s.players[targetIndex].fieldStories.some((f) => f.reviveOnDeathAvailable);
+    s = moveToGraveyardOrRevive(s, targetIndex, { instanceId: battler.instanceId, defId: battler.defId, flags }, def.nameKo);
+    s = updatePlayer(s, targetIndex, (p) => ({ ...p, activeBattler: null }));
+    const bench = s.players[targetIndex].benchBattlers;
+    if (bench.length > 0) {
+        const [promoted, ...rest] = bench;
+        s = updatePlayer(s, targetIndex, (p) => ({
+            ...p,
+            activeBattler: promoted,
+            benchBattlers: rest,
+        }));
+        s = withLog(s, `${targetPlayerName}이(가) 벤치에서 [${getSongDef(promoted.defId).nameKo}]을(를) 배틀 자리로 올렸습니다.`);
+    }
+    if (overkill > 0) {
+        // 이미 배틀러 체력으로 한 번 반영된 무대 보너스를 또 더하지 않도록 source는 "other"로 넘긴다.
+        s = dealDamage(s, targetIndex, overkill, "other");
+    }
+    if (checkGameOver(s))
+        return s;
+    const stillEmpty = s.players[targetIndex].activeBattler === null &&
+        s.players[targetIndex].benchBattlers.length === 0;
+    if (stillEmpty && !hadReviveStory) {
+        s = withLog({ ...s, phase: "gameover", winnerIndex: otherIndex(targetIndex) }, `${targetPlayerName}이(가) 배틀·벤치에 남은 보컬 카드가 없어 패배했습니다!`);
+    }
+    return s;
+}
 function checkGameOver(state) {
     return state.winnerIndex !== null;
 }
@@ -348,9 +442,11 @@ function finalizeIfGameOver(state) {
     return state;
 }
 // ── 카드 발동 ────────────────────────────────────────────────
-// 재생 포인트 같은 자원 개념은 없다 (유희왕처럼 완전 폐지). 턴당 낼 수 있는
-// 카드 수는 오직 mainPlaysRemaining(공격/효과-지속형 전용, 기본 1)으로만
-// 제한되고, 아이템/효과-반응형은 손패에 있는 한 몇 장이든 낼 수 있다.
+// 재생 포인트 같은 자원 개념은 없다 (유희왕처럼 완전 폐지). 보컬(vocal) 카드는
+// 이제 "필드에 놓는" 카드다 — PLAY_CARD는 배틀/벤치에 소환하는 것이고,
+// 소환된 보컬의 스킬은 별도의 USE_SKILL 액션으로 발동한다. 아이템(item)
+// 카드는 기존처럼 손패에 있는 한 턴당 몇 장이든 낼 수 있다(반응 구간
+// 가능 여부는 reactionPlayable 플래그로 판정).
 export function canPlayCard(state, playerIndex, instanceId) {
     if (state.phase === "gameover")
         return { ok: false, reason: "게임이 종료되었습니다." };
@@ -362,19 +458,23 @@ export function canPlayCard(state, playerIndex, instanceId) {
     if (state.phase === "reaction") {
         if (playerIndex === state.activePlayerIndex)
             return { ok: false, reason: "반응 구간에서는 상대만 카드를 낼 수 있습니다." };
-        if (def.type !== "chorus")
-            return { ok: false, reason: "반응 구간에는 코러스 카드만 낼 수 있습니다." };
+        if (!def.reactionPlayable)
+            return { ok: false, reason: "반응 구간에는 반응 가능한 아이템 카드만 낼 수 있습니다." };
     }
     else if (state.phase === "main") {
         if (playerIndex !== state.activePlayerIndex)
             return { ok: false, reason: "자신의 턴이 아닙니다." };
-        // 메인 발동 횟수 제한은 공격(vocal)·효과-지속형(story)에만 적용된다.
-        // 아이템(support)·효과-반응형(chorus)은 손패에 있는 한 몇 장이든 낼 수 있다.
-        if ((def.type === "vocal" || def.type === "story") &&
-            player.mainPlaysRemaining <= 0)
-            return { ok: false, reason: "이번 턴에 낼 수 있는 공격/효과(지속형) 카드를 모두 소진했습니다." };
-        // 재사용 가능 카드(예: 롤링 걸)는 턴당 횟수 제한을 두지 않는다 — 대신
-        // 확률(드로우 실패)과 덱 소진 위험으로 스스로 브레이크가 걸리도록 설계되어 있다.
+        if (def.type === "vocal") {
+            // 소환(필드에 놓기)은 메인 발동 횟수를 소모한다 — 보드를 한 턴에 몰아
+            // 채우지 못하게 하는 유일한 페이싱 장치다.
+            if (player.mainPlaysRemaining <= 0)
+                return { ok: false, reason: "이번 턴에 소환할 수 있는 보컬 카드를 모두 소진했습니다." };
+            if (player.activeBattler !== null && player.benchBattlers.length >= BENCH_SIZE)
+                return { ok: false, reason: "배틀·벤치 자리가 가득 찼습니다." };
+        }
+        // 아이템 카드는 손패에 있는 한 몇 장이든 낼 수 있다. 재사용 가능 카드
+        // (예: 롤링 걸)도 턴당 횟수 제한을 두지 않는다 — 대신 확률(드로우 실패)과
+        // 덱 소진 위험으로 스스로 브레이크가 걸리도록 설계되어 있다.
     }
     else {
         return { ok: false, reason: "지금은 카드를 낼 수 없는 단계입니다." };
@@ -385,19 +485,49 @@ function playCard(state, playerIndex, instanceId) {
     const check = canPlayCard(state, playerIndex, instanceId);
     if (!check.ok)
         return withLog(state, `(무시됨) ${check.reason}`);
-    const opponentIndex = otherIndex(playerIndex);
     const player = state.players[playerIndex];
     const inst = player.hand.find((c) => c.instanceId === instanceId);
     const def = getSongDef(inst.defId);
+    if (def.type === "vocal")
+        return summonBattler(state, playerIndex, inst, def);
+    return playItemCard(state, playerIndex, inst, def);
+}
+/** 보컬 카드를 배틀(비어 있으면) 또는 벤치 자리에 소환한다. 턴은 끝나지 않는다
+ *  — 소환 직후 그 턴에 바로 스킬도 쓸 수 있다(포켓몬처럼 "소환 후유증" 없음). */
+function summonBattler(state, playerIndex, inst, def) {
+    const newBattler = {
+        instanceId: inst.instanceId,
+        defId: inst.defId,
+        currentHp: def.hp ?? 1,
+        maxHp: def.hp ?? 1,
+    };
+    let s = updatePlayer(state, playerIndex, (p) => {
+        const hand = p.hand.filter((c) => c.instanceId !== inst.instanceId);
+        if (p.activeBattler === null) {
+            return { ...p, hand, activeBattler: newBattler };
+        }
+        return { ...p, hand, benchBattlers: [...p.benchBattlers, newBattler] };
+    });
+    const toBench = state.players[playerIndex].activeBattler !== null;
+    s = withLog(s, `${state.players[playerIndex].name}: [${def.nameKo}]을(를) ${toBench ? "벤치" : "배틀 자리"}에 소환!`);
+    s = updatePlayer(s, playerIndex, (p) => ({
+        ...p,
+        playedSongThisTurn: true,
+        mainPlaysRemaining: Math.max(0, p.mainPlaysRemaining - 1),
+    }));
+    return finalizeIfGameOver(s);
+}
+/** 아이템 카드를 발동한다 (구 서포트/스토리/코러스 통합). */
+function playItemCard(state, playerIndex, inst, def) {
+    const opponentIndex = otherIndex(playerIndex);
     const mods = getActiveModifiers(state);
     const synergy = hasStageSynergy(state, def.producerId) ? 1 : 0;
     // 손패에서 제거
     let s = updatePlayer(state, playerIndex, (p) => ({
         ...p,
-        hand: p.hand.filter((c) => c.instanceId !== instanceId),
+        hand: p.hand.filter((c) => c.instanceId !== inst.instanceId),
     }));
-    const isNegated = (def.type === "support" || def.type === "story") &&
-        s.players[playerIndex].negateNextSupportOrStory;
+    const isNegated = s.players[playerIndex].negateNextSupportOrStory;
     if (isNegated) {
         s = updatePlayer(s, playerIndex, (p) => ({ ...p, negateNextSupportOrStory: false }));
         s = withLog(s, `${def.nameKo} 효과가 무효화되었습니다!`);
@@ -405,8 +535,9 @@ function playCard(state, playerIndex, instanceId) {
     else {
         s = resolveEffect(s, playerIndex, opponentIndex, def, synergy, mods);
     }
-    // 소모 카드 처리: 무덤으로 (스토리/윤회/장산범/재사용 카드 예외는 별도 처리)
-    const goesToField = def.type === "story" && !isNegated;
+    // 소모 카드 처리: 무덤으로 (설치형/윤회/장산범/재사용 카드 예외는 별도 처리)
+    const goesToField = !isNegated &&
+        (def.effect.kind === "installStoryTick" || def.effect.kind === "installReviveOnceOnDeath");
     if (def.reusable && !goesToField) {
         // 재사용 가능 카드(예: 롤링 걸)는 무덤에 가지 않고 바로 손으로 돌아온다.
         s = updatePlayer(s, playerIndex, (p) => ({ ...p, hand: [...p.hand, inst] }));
@@ -416,50 +547,66 @@ function playCard(state, playerIndex, instanceId) {
         if (def.effect.kind === "markReviveOnceInGraveyard" && !isNegated) {
             flags = { ...flags, revivePending: true };
         }
-        // 윤회: 이 플레이어에게 사용 대기 중인 부활 스토리가 있으면, 방금 낸
-        // 카드가 무덤 대신 즉시 손으로 되돌아온다 (조건 없음, 1회용 소모).
-        const reviveStoryIdx = s.players[playerIndex].fieldStories.findIndex((story) => story.reviveOnDeathAvailable);
-        if (reviveStoryIdx !== -1) {
-            s = updatePlayer(s, playerIndex, (p) => ({
-                ...p,
-                fieldStories: p.fieldStories.filter((_, i) => i !== reviveStoryIdx),
-                hand: [...p.hand, { ...inst, flags }],
-            }));
-            s = withLog(s, `윤회의 힘으로 [${def.nameKo}]가 손으로 돌아왔습니다.`);
-        }
-        else {
-            s = updatePlayer(s, playerIndex, (p) => ({
-                ...p,
-                graveyard: [...p.graveyard, { ...inst, flags }],
-            }));
-        }
+        s = moveToGraveyardOrRevive(s, playerIndex, { ...inst, flags }, def.nameKo);
     }
-    // "발동했다"는 표시는 코러스(효과-반응형)를 제외한 모든 타입에 남긴다
+    // "발동했다"는 표시는 반응 가능(구 코러스) 카드를 제외한 모든 아이템에 남긴다
     // (표리 러버즈 등 "이번 턴에 이미 곡을 냈다면" 판정용).
-    if (def.type !== "chorus") {
+    if (!def.reactionPlayable) {
         s = updatePlayer(s, playerIndex, (p) => ({ ...p, playedSongThisTurn: true }));
     }
-    // 메인 발동 횟수(mainPlaysRemaining)는 공격(vocal)과 효과-지속형(story)만
-    // 소모한다. 아이템(support)과 효과-반응형(chorus)은 포켓몬 카드게임의
-    // 아이템 카드처럼 재생 포인트가 허락하는 한 턴당 여러 장 낼 수 있다.
-    if (def.type === "vocal" || def.type === "story") {
-        s = updatePlayer(s, playerIndex, (p) => ({
-            ...p,
-            mainPlaysRemaining: Math.max(0, p.mainPlaysRemaining - 1),
-        }));
-    }
     s = withLog(s, `${state.players[playerIndex].name}: [${def.nameKo}] 발동!`);
+    return finalizeIfGameOver(s);
+}
+/** 배틀 자리의 보컬 카드로 스킬을 사용한다. 그 즉시 턴이 끝난다. */
+function useSkill(state, playerIndex) {
+    if (state.phase !== "main" || playerIndex !== state.activePlayerIndex) {
+        return withLog(state, "(무시됨) 지금은 스킬을 쓸 수 없습니다.");
+    }
+    const player = state.players[playerIndex];
+    const battler = player.activeBattler;
+    if (!battler) {
+        return withLog(state, "(무시됨) 배틀 자리에 카드가 없습니다.");
+    }
+    const opponentIndex = otherIndex(playerIndex);
+    const def = getSongDef(battler.defId);
+    const mods = getActiveModifiers(state);
+    const synergy = hasStageSynergy(state, def.producerId) ? 1 : 0;
+    let s = withLog(state, `${player.name}: [${def.nameKo}] 스킬 사용!`);
+    s = resolveEffect(s, playerIndex, opponentIndex, def, synergy, mods);
     s = finalizeIfGameOver(s);
-    // 유희왕/포켓몬 카드게임처럼, 보컬(공격) 카드를 발동하면 그 즉시 자신의
-    // 턴이 끝난다 — 남은 메인 발동 횟수(예: wowaka 무대)가 있어도 마찬가지다.
-    if (s.phase === "main" && def.type === "vocal") {
+    // 유희왕/포켓몬 카드게임처럼, 스킬을 쓰면 그 즉시 자신의 턴이 끝난다.
+    if (s.phase === "main") {
         s = beginEndOfTurnSequence(s, playerIndex);
     }
     return s;
 }
+/** 배틀 카드와 벤치 카드 1장을 맞바꾼다. 자원이 없으므로 비용 없이 턴당
+ *  1회 무료로 허용한다. 턴은 끝나지 않는다. */
+function switchActive(state, playerIndex, benchInstanceId) {
+    if (state.phase !== "main" || playerIndex !== state.activePlayerIndex) {
+        return withLog(state, "(무시됨) 지금은 교체할 수 없습니다.");
+    }
+    const player = state.players[playerIndex];
+    if (player.switchedActiveThisTurn) {
+        return withLog(state, "(무시됨) 이번 턴에는 이미 교체했습니다.");
+    }
+    const benchIdx = player.benchBattlers.findIndex((b) => b.instanceId === benchInstanceId);
+    if (benchIdx === -1) {
+        return withLog(state, "(무시됨) 벤치에 없는 카드입니다.");
+    }
+    const promoted = player.benchBattlers[benchIdx];
+    const rest = player.benchBattlers.filter((_, i) => i !== benchIdx);
+    const s = updatePlayer(state, playerIndex, (p) => ({
+        ...p,
+        activeBattler: promoted,
+        benchBattlers: p.activeBattler ? [...rest, p.activeBattler] : rest,
+        switchedActiveThisTurn: true,
+    }));
+    return withLog(s, `${player.name}이(가) [${getSongDef(promoted.defId).nameKo}]와(과) 교체했습니다.`);
+}
 function resolveEffect(state, actor, target, def, synergy, mods) {
     const actorPlayer = state.players[actor];
-    const supportBonus = def.type === "support" ? mods.allSupportEffectBonus + synergy : 0;
+    const itemBonus = def.type === "item" ? mods.allItemEffectBonus + synergy : 0;
     const vocalSynergy = def.type === "vocal" ? synergy : 0;
     let s = state;
     // 각 case 블록에서 def.effect를 지역 const로 별도 바인딩한다.
@@ -470,13 +617,13 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
         case "damage": {
             const total = effect.amount + actorPlayer.nextVocalDamageBonus + vocalSynergy;
             s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
-            s = dealDamage(s, target, total, "vocal");
+            s = dealSkillDamage(s, target, total);
             break;
         }
         case "damageThenHealSelf": {
             const total = effect.amount + actorPlayer.nextVocalDamageBonus + vocalSynergy;
             s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
-            s = dealDamage(s, target, total, "vocal");
+            s = dealSkillDamage(s, target, total);
             s = healPlayer(s, actor, effect.heal);
             break;
         }
@@ -487,7 +634,7 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
                 actorPlayer.nextVocalDamageBonus +
                 vocalSynergy;
             s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
-            s = dealDamage(s, target, total, "vocal");
+            s = dealSkillDamage(s, target, total);
             break;
         }
         case "damageBonusIfPlayedSongThisTurn": {
@@ -496,14 +643,14 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
                 actorPlayer.nextVocalDamageBonus +
                 vocalSynergy;
             s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
-            s = dealDamage(s, target, total, "vocal");
+            s = dealSkillDamage(s, target, total);
             break;
         }
         case "damageThenOpponentDraws": {
             const total = effect.amount + actorPlayer.nextVocalDamageBonus + vocalSynergy;
             const opponentDraw = effect.opponentDraw;
             s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
-            s = dealDamage(s, target, total, "vocal");
+            s = dealSkillDamage(s, target, total);
             if (opponentDraw > 0) {
                 s = updatePlayer(s, target, (p) => drawN(p, opponentDraw, target));
             }
@@ -512,7 +659,7 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
         case "damageThenPeekOpponentHand": {
             const total = effect.amount + actorPlayer.nextVocalDamageBonus + vocalSynergy;
             s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
-            s = dealDamage(s, target, total, "vocal");
+            s = dealSkillDamage(s, target, total);
             s = { ...s, revealedHand: { ownerIndex: target, cards: s.players[target].hand } };
             break;
         }
@@ -520,16 +667,16 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
             const total = effect.amount + actorPlayer.nextVocalDamageBonus + vocalSynergy;
             const drawAmount = effect.draw;
             s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
-            s = dealDamage(s, target, total, "vocal");
+            s = dealSkillDamage(s, target, total);
             s = updatePlayer(s, actor, (p) => drawN(p, drawAmount, actor));
             break;
         }
         case "heal": {
-            s = healPlayer(s, actor, effect.amount + supportBonus);
+            s = healPlayer(s, actor, effect.amount + itemBonus);
             break;
         }
         case "buffNextVocalWithSelfCost": {
-            const amount = effect.amount + supportBonus;
+            const amount = effect.amount + itemBonus;
             const selfCost = effect.selfPopularityCostOnTurnEnd;
             s = updatePlayer(s, actor, (p) => ({
                 ...p,
@@ -539,7 +686,7 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
             break;
         }
         case "debuffOpponentNextVocal": {
-            const amount = effect.amount + supportBonus;
+            const amount = effect.amount + itemBonus;
             s = updatePlayer(s, target, (p) => ({
                 ...p,
                 nextVocalDamageBonus: p.nextVocalDamageBonus - amount,
@@ -547,7 +694,7 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
             break;
         }
         case "gainExtraMainPlay": {
-            const amount = effect.amount + supportBonus;
+            const amount = effect.amount + itemBonus;
             s = updatePlayer(s, actor, (p) => ({
                 ...p,
                 mainPlaysRemaining: p.mainPlaysRemaining + amount,
@@ -643,7 +790,7 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
         case "damageAndGainExtraMainPlay": {
             const total = effect.amount + actorPlayer.nextVocalDamageBonus + vocalSynergy;
             s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
-            s = dealDamage(s, target, total, "vocal");
+            s = dealSkillDamage(s, target, total);
             s = updatePlayer(s, actor, (p) => ({
                 ...p,
                 mainPlaysRemaining: p.mainPlaysRemaining + effect.extraPlays,
@@ -657,14 +804,14 @@ function resolveEffect(state, actor, target, def, synergy, mods) {
                 actorPlayer.nextVocalDamageBonus +
                 vocalSynergy;
             s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
-            s = dealDamage(s, target, total, "vocal");
+            s = dealSkillDamage(s, target, total);
             break;
         }
         case "gambleDamageOrDraw": {
             if (Math.random() < 0.5) {
                 const total = effect.damage + actorPlayer.nextVocalDamageBonus + vocalSynergy;
                 s = updatePlayer(s, actor, (p) => ({ ...p, nextVocalDamageBonus: 0 }));
-                s = dealDamage(s, target, total, "vocal");
+                s = dealSkillDamage(s, target, total);
                 s = withLog(s, `순식간에 퍼져나가듯, 상대에게 그대로 꽂혔다!`);
             }
             else {
@@ -692,12 +839,12 @@ function randomDiscard(player, amount) {
     return p;
 }
 // ── 턴 종료 / 반응 구간 ──────────────────────────────────────
-/** 메인 페이즈를 마치고 상대의 반응(코러스) 구간으로 넘기거나, 반응이 필요 없으면 바로 턴을 마친다. */
+/** 메인 페이즈를 마치고 상대의 반응 구간으로 넘기거나, 반응이 필요 없으면 바로 턴을 마친다. */
 function beginEndOfTurnSequence(state, playerIndex) {
     const opponent = otherIndex(playerIndex);
-    const opponentHasChorus = state.players[opponent].hand.some((c) => getSongDef(c.defId).type === "chorus");
-    if (opponentHasChorus) {
-        return withLog({ ...state, phase: "reaction" }, `${state.players[opponent].name}의 반응 구간입니다. (코러스 카드 또는 패스)`);
+    const opponentHasReactionCard = state.players[opponent].hand.some((c) => getSongDef(c.defId).reactionPlayable);
+    if (opponentHasReactionCard) {
+        return withLog({ ...state, phase: "reaction" }, `${state.players[opponent].name}의 반응 구간입니다. (반응 아이템 카드 또는 패스)`);
     }
     return finishTurn(state);
 }
@@ -771,6 +918,12 @@ export function reduce(state, action) {
     switch (action.type) {
         case "PLAY_CARD":
             result = playCard(state, action.playerIndex, action.instanceId);
+            break;
+        case "USE_SKILL":
+            result = useSkill(state, action.playerIndex);
+            break;
+        case "SWITCH_ACTIVE":
+            result = switchActive(state, action.playerIndex, action.benchInstanceId);
             break;
         case "END_TURN":
             result = endTurn(state, action.playerIndex);

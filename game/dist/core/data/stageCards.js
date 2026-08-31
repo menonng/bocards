@@ -7,15 +7,15 @@ export const STAGE_CARDS = [
         producerId: "deco27",
         nameKo: "DECO*27",
         description: "고백의 계절 — 감정을 직설적으로 던지는 가사처럼, 버프·디버프·회복이 더 진하게 걸린다. " +
-            "[전원] 서포트 타입 카드의 효과 수치 +1.",
-        modifiers: { allSupportEffectBonus: 1 },
+            "[전원] 아이템 타입 카드의 효과 수치 +1.",
+        modifiers: { allItemEffectBonus: 1 },
     },
     {
         id: "stage-hachi",
         producerId: "hachi",
         nameKo: "하치",
-        description: "긴 이야기 — 서사적인 곡답게 판 자체가 길어지고 설치형 카드가 오래 남는다. " +
-            "[전원] 스토리 카드 지속 턴 +1, 시작 체력 +2. 차트 모드 종료 턴 +2.",
+        description: "긴 이야기 — 서사적인 곡답게 판 자체가 길어지고 설치형 아이템이 오래 남는다. " +
+            "[전원] 설치형 아이템 지속 턴 +1, 시작 체력 +2. 차트 모드 종료 턴 +2.",
         modifiers: {
             storyDurationDelta: 1,
             startPopularityDelta: 2,
