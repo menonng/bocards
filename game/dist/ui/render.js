@@ -291,7 +291,7 @@ function shell(screen, title, content, onNav) {
     const root = el(`
     <div class="app">
       <aside>
-        <div class="logo">BO<span>CARDS</span></div>
+        <div class="logo">VO<span>CARD</span><small class="logo-jp">ボカード</small></div>
         <div class="nav">
           <button data-screen="battle">◈  대전</button>
           <button data-screen="cards">▦  카드 목록</button>

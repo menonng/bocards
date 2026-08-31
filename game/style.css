@@ -14,6 +14,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 aside{border-right:1px solid var(--line);background:rgba(12,13,15,.82);padding:24px 16px;display:flex;flex-direction:column;gap:26px}
 .logo{font-weight:900;letter-spacing:.14em;font-size:19px}
 .logo span{color:#888}
+.logo-jp{display:block;font-weight:500;letter-spacing:.08em;font-size:11px;color:#6b7078;margin-top:2px}
 .nav{display:grid;gap:6px}
 .nav button{background:transparent;border:0;border-radius:9px;text-align:left;padding:12px 13px;color:var(--muted);font-size:14px}
 .nav button.active,.nav button:hover{background:#24272c;color:#fff}
