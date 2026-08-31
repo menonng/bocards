@@ -24,6 +24,9 @@ export interface ProducerInfo {
   accent: string;
   /** 공식 X(트위터) 핸들 (@ 제외). 있으면 P카드 배지에 프로필 사진 미리보기를 시도한다. */
   twitterHandle?: string;
+  /** P카드 툴팁 2페이지에 쓰이는 짧은 약력(대표곡·활동시기 등). 무대 카드가
+   *  있는 6명 메인 프로듀서만 채운다. */
+  bio?: string;
 }
 
 /** 스토리 카드가 매 턴 시작 시 반복 발동하는 효과 */
@@ -112,6 +115,9 @@ export interface StageCardDef {
   id: string;
   producerId: string;
   nameKo: string;
+  /** 카드 앞면에 보이는 짧은 기계적 효과 요약 한 줄 (예: "아이템 카드 효과 +1"). */
+  effectSummary: string;
+  /** 툴팁 2페이지 전체 설명(플레이버 + 상세 수치). */
   description: string;
   modifiers: StageModifiers;
 }

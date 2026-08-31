@@ -77,7 +77,9 @@ function shuffle(arr, rng) {
 // 들어갈 수 있지만, 레전더리(신화입성곡 등)는 덱당 1장으로 제한한다.
 const DECK_SIZE = 70;
 /** 벤치(교체 대기) 자리 최대 개수. 배틀 자리 1 + 벤치 = 필드 최대 카드 수. */
-export const BENCH_SIZE = 2;
+export const BENCH_SIZE = 5;
+/** "마법/함정 카드 존" — 플레이어당 동시 설치 가능한 fieldStories 상한. */
+export const SPELL_TRAP_ZONE_SIZE = 3;
 const BUCKET_CARDS = {
     vocal: SONG_CARDS.filter((c) => c.type === "vocal"),
     item: SONG_CARDS.filter((c) => c.type === "item"),
@@ -120,7 +122,7 @@ function makeDeck(rng, ownerTag, ratio) {
 const BASE_HAND_LIMIT = 7;
 const BASE_START_POPULARITY = 20;
 const BASE_CHART_TURN_LIMIT = 20;
-const OPENING_HAND_SIZE = 5;
+const OPENING_HAND_SIZE = 7;
 function createPlayer(name, deck) {
     return {
         name,
@@ -191,22 +193,27 @@ export function startGame(action) {
             applyStartOfGameModifiers(state.players[1], mods),
         ],
     };
-    // 오프닝 핸드
-    state = updatePlayer(state, 0, (p) => drawN(p, OPENING_HAND_SIZE, 0));
-    state = updatePlayer(state, 1, (p) => drawN(p, OPENING_HAND_SIZE, 1));
-    // 포켓몬 카드게임의 "배틀 자리에 베이직 포켓몬을 먼저 놓는다" 셋업과 같은
-    // 개념 — 시작부터 필드가 비어 있으면 "배틀·벤치 모두 없으면 패배" 규칙이
-    // 첫 턴부터 오작동하므로, 게임 시작 시 각자 보컬 카드 1장을 배틀 자리에
-    // 무료로 세운다(메인 발동 횟수를 소모하지 않는다).
-    state = updatePlayer(state, 0, (p) => setupInitialBattler(p, 0));
-    state = updatePlayer(state, 1, (p) => setupInitialBattler(p, 1));
+    // 오프닝 핸드 — 보컬(공격) 카드가 한 장도 없으면 포켓몬 카드게임의 멀리건
+    // 규칙대로 손패를 덱에 다시 섞어 넣고 재드로우한다. 유효한 손패가 나오면
+    // 그중 첫 번째 보컬 카드를 배틀 자리에 무료로 세운다(메인 발동 횟수 소모
+    // 없음) — 시작부터 필드가 비어 있으면 "배틀·벤치 모두 없으면 패배" 규칙이
+    // 첫 턴부터 오작동하기 때문이다.
+    state = updatePlayer(state, 0, (p) => drawOpeningHandWithMulligan(p, 0, rng));
+    state = updatePlayer(state, 1, (p) => drawOpeningHandWithMulligan(p, 1, rng));
     state = { ...state, log: [...state.log, describeStage(state)] };
     return runIntroAndDraw(state);
 }
-/** 손패(부족하면 덱을 더 뽑아서라도)에서 보컬 카드 1장을 찾아 배틀 자리에 세운다. */
-function setupInitialBattler(player, index) {
+const MAX_MULLIGANS = 20;
+/** 오프닝 핸드를 뽑는다 — 보컬 카드가 없으면 손패를 덱에 다시 섞어 넣고
+ *  재드로우(멀리건)한다. 성공하면 첫 보컬 카드를 배틀 자리에 세운 상태로 반환. */
+function drawOpeningHandWithMulligan(player, index, rng) {
     let p = player;
-    for (let tries = 0; tries < p.deck.length + p.hand.length + 1; tries++) {
+    for (let mulligans = 0; mulligans < MAX_MULLIGANS; mulligans++) {
+        if (mulligans > 0) {
+            // 보컬 카드를 못 찾았으므로 손패를 덱에 다시 섞어 넣는다.
+            p = { ...p, deck: shuffle([...p.hand, ...p.deck], rng), hand: [] };
+        }
+        p = drawN(p, OPENING_HAND_SIZE, index);
         const idx = p.hand.findIndex((c) => getSongDef(c.defId).type === "vocal");
         if (idx !== -1) {
             const card = p.hand[idx];
@@ -222,13 +229,10 @@ function setupInitialBattler(player, index) {
                 },
             };
         }
-        if (p.deck.length === 0)
-            break;
-        p = drawOne(p, index);
     }
-    // 덱을 다 뒤져도 보컬 카드가 한 장도 없는 극단적 설정(보컬 비율 0%)이면
-    // 배틀 자리를 비워둔 채로 시작한다 — 이후 정상적으로 카드를 소환하기 전까지는
-    // 스킬을 쓸 수 없을 뿐, 즉시 패배로 이어지지는 않는다("격파" 시점에만 판정).
+    // 보컬 비율 0%인 극단적 설정 등으로 끝내 보컬 카드를 찾지 못하면, 마지막으로
+    // 뽑은 손패 그대로 시작한다 — 배틀 자리는 비워두고, 즉시 패배로 이어지지는
+    // 않는다("격파" 시점에만 판정).
     return p;
 }
 function describeStage(state) {
@@ -471,6 +475,11 @@ export function canPlayCard(state, playerIndex, instanceId) {
                 return { ok: false, reason: "이번 턴에 소환할 수 있는 보컬 카드를 모두 소진했습니다." };
             if (player.activeBattler !== null && player.benchBattlers.length >= BENCH_SIZE)
                 return { ok: false, reason: "배틀·벤치 자리가 가득 찼습니다." };
+        }
+        // 설치형(마법/함정) 이펙트는 "마법/함정 카드 존" 자리(3개)를 소모한다.
+        if ((def.effect.kind === "installStoryTick" || def.effect.kind === "installReviveOnceOnDeath") &&
+            player.fieldStories.length >= SPELL_TRAP_ZONE_SIZE) {
+            return { ok: false, reason: "마법/함정 카드 존이 가득 찼습니다." };
         }
         // 아이템 카드는 손패에 있는 한 몇 장이든 낼 수 있다. 재사용 가능 카드
         // (예: 롤링 걸)도 턴당 횟수 제한을 두지 않는다 — 대신 확률(드로우 실패)과

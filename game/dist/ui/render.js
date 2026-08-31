@@ -1,9 +1,9 @@
 import { SONG_CARDS } from "../core/data/songCards.js";
 import { STAGE_CARDS } from "../core/data/stageCards.js";
-import { getSongDef, canPlayCard, DEFAULT_DECK_RATIO, BENCH_SIZE } from "../core/engine.js";
+import { getSongDef, canPlayCard, DEFAULT_DECK_RATIO, BENCH_SIZE, SPELL_TRAP_ZONE_SIZE, } from "../core/engine.js";
 import { getProducer } from "../core/data/producers.js";
 import { cardArtDataUri, producerBadgeDataUri, twitterAvatarUrl, youtubeThumbnailUrl, } from "./cardArt.js";
-import { cardTypeLabel, effectText, rarityLabel, recordText } from "./cardText.js";
+import { cardTypeLabel, effectText, recordText } from "./cardText.js";
 const HUMAN = 0;
 const AI = 1;
 function el(html) {
@@ -12,16 +12,43 @@ function el(html) {
     return wrapper.firstElementChild;
 }
 // ── 툴팁(정보 팝업) ──────────────────────────────────────────
-function attachHoverFlip(node) {
+// 1) 카드에 마우스를 올리고 1초 뒤 표시된다.
+// 2) 표시된 뒤 설명창 자체에 마우스를 올려도 사라지지 않는다(카드↔설명창
+//    사이 여백을 건널 때도 안 닫히도록 짧은 유예시간을 둔다).
+// 3) 그 상태로 설명창을 클릭하면 1페이지(효과만) ↔ 2페이지(투고일/기록 또는
+//    P의 대표곡·활동시기 + 코멘트)를 오간다. 다시 닫히면 항상 1페이지로 리셋.
+function attachTooltipBehavior(node) {
     const pop = node.querySelector(".info-pop");
     if (!pop)
         return;
-    node.addEventListener("mouseenter", () => {
+    let hideTimer = null;
+    const show = () => {
+        if (hideTimer !== null) {
+            window.clearTimeout(hideTimer);
+            hideTimer = null;
+        }
         const rect = node.getBoundingClientRect();
         if (rect.right + 300 > window.innerWidth)
             pop.classList.add("pop-left");
         else
             pop.classList.remove("pop-left");
+        pop.classList.add("pop-visible");
+    };
+    const scheduleHide = () => {
+        if (hideTimer !== null)
+            window.clearTimeout(hideTimer);
+        hideTimer = window.setTimeout(() => {
+            pop.classList.remove("pop-visible");
+            pop.dataset.page = "0";
+        }, 200);
+    };
+    node.addEventListener("mouseenter", show);
+    node.addEventListener("mouseleave", scheduleHide);
+    pop.addEventListener("mouseenter", show);
+    pop.addEventListener("mouseleave", scheduleHide);
+    pop.addEventListener("click", (e) => {
+        e.stopPropagation();
+        pop.dataset.page = pop.dataset.page === "1" ? "0" : "1";
     });
 }
 /** 곡 카드 아트: 공식 YouTube 영상이 확인된 곡은 그 썸네일(i.ytimg.com)을,
@@ -58,18 +85,23 @@ function songTooltipHtml(def) {
     const record = recordText(def);
     const art = songArt(def, producer);
     return `
-    <div class="info-pop" style="--pop-accent:${producer.accent}">
+    <div class="info-pop" data-page="0" style="--pop-accent:${producer.accent}">
       ${imgTag(art, "info-pop-art")}
       ${art.attribution ? `<div class="art-source">${art.attribution}</div>` : ""}
       <h4>${def.nameKo}</h4>
       <div class="sub">${def.nameOriginal} · ${producer.nameKo}</div>
-      <div class="details">
-        <b>작곡가</b> ${producer.nameKo}${def.releaseDate ? ` · <b>투고일</b> ${def.releaseDate}` : ""}
-        ${record ? `<br><b>기록</b> ${record}` : ""}
-        ${def.type === "vocal" ? `<br><b>체력</b> ${def.hp}` : ""}
-        <br><b>효과</b> ${effectText(def.effect)}
+      <div class="pop-page pop-page-0">
+        <div class="details"><b>효과</b> ${effectText(def.effect)}</div>
       </div>
-      <div class="comment">${def.flavor}</div>
+      <div class="pop-page pop-page-1">
+        <div class="details">
+          ${def.releaseDate ? `<b>투고일</b> ${def.releaseDate}` : ""}
+          ${record ? `${def.releaseDate ? "<br>" : ""}<b>기록</b> ${record}` : ""}
+          ${!def.releaseDate && !record ? "투고일·기록 정보 없음" : ""}
+        </div>
+        <div class="comment">${def.flavor}</div>
+      </div>
+      <div class="pop-hint">클릭해서 더 보기</div>
     </div>`;
 }
 function stageTooltipHtml(stageId) {
@@ -77,12 +109,18 @@ function stageTooltipHtml(stageId) {
     const producer = getProducer(stage.producerId);
     const art = producerArt(producer);
     return `
-    <div class="info-pop" style="--pop-accent:${producer.accent}">
+    <div class="info-pop" data-page="0" style="--pop-accent:${producer.accent}">
       ${imgTag(art, "info-pop-art")}
       ${art.attribution ? `<div class="art-source">${art.attribution}</div>` : ""}
       <h4>${stage.nameKo}</h4>
       <div class="sub">P카드(무대 카드) · 게임 전체 공용 규칙</div>
-      <div class="details">${stage.description}</div>
+      <div class="pop-page pop-page-0">
+        <div class="details"><b>효과</b> ${stage.effectSummary}</div>
+      </div>
+      <div class="pop-page pop-page-1">
+        <div class="comment">${producer.bio ?? stage.description}</div>
+      </div>
+      <div class="pop-hint">클릭해서 더 보기</div>
     </div>`;
 }
 // ── 곡 카드 컴포넌트 ─────────────────────────────────────────
@@ -106,12 +144,11 @@ function songCardFull(def) {
         <div class="ctitle">${def.nameKo}</div>
         <div class="artist">${producer.nameKo}${def.reusable ? " · 재사용가능" : ""}</div>
         <div class="effect">${effectText(def.effect)}</div>
-        <div class="cardfoot"><span class="rarity">${rarityLabel(def.rarity)}</span></div>
       </div>
       ${songTooltipHtml(def)}
     </div>
   `);
-    attachHoverFlip(node);
+    attachTooltipBehavior(node);
     return node;
 }
 function miniCard(card, playable, reason, onClick) {
@@ -129,7 +166,7 @@ function miniCard(card, playable, reason, onClick) {
       ${songTooltipHtml(def)}
     </div>
   `);
-    attachHoverFlip(node);
+    attachTooltipBehavior(node);
     if (playable)
         node.addEventListener("click", onClick);
     return node;
@@ -153,7 +190,7 @@ function battlerTile(battler, opts = {}) {
       ${songTooltipHtml(def)}
     </div>
   `);
-    attachHoverFlip(node);
+    attachTooltipBehavior(node);
     if (opts.clickable && opts.onClick)
         node.addEventListener("click", opts.onClick);
     return node;
@@ -181,19 +218,73 @@ function fieldZone(state, index, canSwitch, handlers) {
     wrap.appendChild(benchWrap);
     return wrap;
 }
-function stageBadge(stageId) {
+/** 덱/무덤을 "쌓인 카드 뭉치"로 시각화한다(실제 장수만큼 렌더링하지 않고,
+ *  최대 4겹의 오프셋 레이어 + 실제 장수 뱃지로 표현). */
+function cardStack(count, label) {
+    const layers = Math.min(4, count);
+    const layerDivs = Array.from({ length: layers }, (_, i) => `<div class="stack-layer" style="--i:${i}"></div>`).join("");
+    return el(`
+    <div class="card-stack ${count === 0 ? "empty" : ""}">
+      <div class="stack-layers">${layerDivs}</div>
+      <div class="stack-label">${label} ${count}</div>
+    </div>
+  `);
+}
+/** "마법/함정 카드 존" — 설치된 fieldStories(최대 SPELL_TRAP_ZONE_SIZE)를 타일로 그린다. */
+function spellTrapZone(state, index) {
+    const p = state.players[index];
+    const wrap = el(`<div class="spelltrap-row"></div>`);
+    for (const story of p.fieldStories) {
+        const def = getSongDef(story.defId);
+        const producer = getProducer(def.producerId);
+        const art = songArt(def, producer);
+        const node = el(`
+      <div class="mini-card spelltrap-tile" style="--card-accent:${producer.accent}">
+        ${imgTag(art, "")}
+        <div class="mc">${def.nameKo}</div>
+        <div class="spelltrap-turns">${story.remainingTurns === 999 ? "대기" : story.remainingTurns + "턴"}</div>
+        ${songTooltipHtml(def)}
+      </div>
+    `);
+        attachTooltipBehavior(node);
+        wrap.appendChild(node);
+    }
+    for (let i = p.fieldStories.length; i < SPELL_TRAP_ZONE_SIZE; i++) {
+        wrap.appendChild(emptyBattlerSlot("마법/함정"));
+    }
+    return wrap;
+}
+function stageBadge(stageId, animateArrival = false) {
     const stage = STAGE_CARDS.find((s) => s.id === stageId);
     const producer = getProducer(stage.producerId);
     const art = producerArt(producer);
     const node = el(`
-    <div class="stage-badge" style="--card-accent:${producer.accent}">
+    <div class="stage-badge ${animateArrival ? "stage-badge-arrive" : ""}" style="--card-accent:${producer.accent}">
       ${imgTag(art, "")}
       <div class="stage-badge-name">${stage.nameKo}</div>
+      <div class="stage-badge-effect">${stage.effectSummary}</div>
       ${stageTooltipHtml(stageId)}
     </div>
   `);
-    attachHoverFlip(node);
+    attachTooltipBehavior(node);
     return node;
+}
+/** 게임 시작 시 잠깐 뜨는 "이번 게임의 P카드는 이거예요~" 오버레이. */
+function stageIntroOverlay(stageId) {
+    const stage = STAGE_CARDS.find((s) => s.id === stageId);
+    const producer = getProducer(stage.producerId);
+    const art = producerArt(producer);
+    return el(`
+    <div class="stage-intro-overlay">
+      <div class="stage-intro-label">이번 게임의 P카드는</div>
+      <div class="stage-intro-card" style="--card-accent:${producer.accent}">
+        ${imgTag(art, "")}
+        <div class="stage-badge-name">${stage.nameKo}</div>
+        <div class="stage-badge-effect">${stage.effectSummary}</div>
+      </div>
+      <div class="stage-intro-label">이거예요~</div>
+    </div>
+  `);
 }
 // ── 앱 셸(사이드바 + 상단바) ───────────────────────────────────
 function shell(screen, title, content, onNav) {
@@ -309,18 +400,25 @@ export function renderCardsScreen(onNav) {
     return shell("cards", "카드 목록", content, onNav);
 }
 // ── 대전 화면 ────────────────────────────────────────────────
-function fieldSummary(state, index) {
+/** 필드(배틀+벤치) 한 줄 + 옆의 덱/무덤 카드 뭉치를 함께 그린다. */
+function zoneRow(state, index, canSwitch, handlers) {
     const p = state.players[index];
-    if (p.fieldStories.length === 0)
-        return "없음";
-    return p.fieldStories
-        .map((s) => `${getSongDef(s.defId).nameKo}(${s.remainingTurns === 999 ? "대기" : s.remainingTurns + "턴"})`)
-        .join(", ");
+    const row = el(`<div class="zone-row"></div>`);
+    row.appendChild(fieldZone(state, index, canSwitch, handlers));
+    const stacks = el(`<div class="stack-pair"></div>`);
+    stacks.appendChild(cardStack(p.deck.length, "덱"));
+    stacks.appendChild(cardStack(p.graveyard.length, "무덤"));
+    row.appendChild(stacks);
+    return row;
 }
-export function renderBattleScreen(state, handlers) {
+export function renderBattleScreen(state, handlers, showStageIntro, animateStageBadgeArrival = false) {
     const content = el(`<div class="battle"></div>`);
     const board = el(`<div class="board"></div>`);
+    const boardLeft = el(`<div class="board-left"></div>`);
+    const boardMain = el(`<div class="board-main"></div>`);
     const side = el(`<div class="side"></div>`);
+    board.appendChild(boardLeft);
+    board.appendChild(boardMain);
     content.appendChild(board);
     content.appendChild(side);
     const stageId = state.activeStageCardIds[0];
@@ -329,22 +427,29 @@ export function renderBattleScreen(state, handlers) {
     const isHumanTurn = isHumanMainTurn || (isReaction && state.activePlayerIndex === AI);
     const human = state.players[HUMAN];
     const canSwitch = isHumanMainTurn && !human.switchedActiveThisTurn;
-    board.appendChild(el(`<div class="side-stat"><span>OPPONENT / ${state.players[AI].name}</span><span class="hp">♥ ${state.players[AI].popularity}</span></div>`));
-    board.appendChild(fieldZone(state, AI, false, handlers));
-    const stageWrap = el(`<div class="arena"></div>`);
+    // 좌측 중앙: P카드 + 턴 표시 (게임 시작 직후에는 별도 인트로 오버레이가 대신 뜬다)
     if (stageId)
-        stageWrap.appendChild(stageBadge(stageId));
-    const turnLabel = el(`<div class="turn">${state.phase === "gameover" ? "게임 종료" : isReaction ? (isHumanTurn ? "당신의 반응 구간" : "상대의 반응 구간") : state.activePlayerIndex === HUMAN ? "당신의 턴" : "상대의 턴"} · 턴 ${state.turnNumber}</div>`);
-    stageWrap.appendChild(turnLabel);
-    board.appendChild(stageWrap);
-    board.appendChild(fieldZone(state, HUMAN, canSwitch, handlers));
-    board.appendChild(el(`<div class="side-stat"><span>YOU / ${human.name}</span><span class="hp">♥ ${human.popularity}</span></div>`));
+        boardLeft.appendChild(stageBadge(stageId, animateStageBadgeArrival));
+    boardLeft.appendChild(el(`<div class="turn">${state.phase === "gameover" ? "게임 종료" : isReaction ? (isHumanTurn ? "당신의 반응 구간" : "상대의 반응 구간") : state.activePlayerIndex === HUMAN ? "당신의 턴" : "상대의 턴"} · 턴 ${state.turnNumber}</div>`));
+    boardMain.appendChild(el(`<div class="side-stat"><span>OPPONENT / ${state.players[AI].name}</span><span class="hp">♥ ${state.players[AI].popularity}</span></div>`));
+    boardMain.appendChild(zoneRow(state, AI, false, handlers));
+    boardMain.appendChild(spellTrapZone(state, AI));
+    boardMain.appendChild(spellTrapZone(state, HUMAN));
+    boardMain.appendChild(zoneRow(state, HUMAN, canSwitch, handlers));
+    boardMain.appendChild(el(`<div class="side-stat"><span>YOU / ${human.name}</span><span class="hp">♥ ${human.popularity}</span></div>`));
     const handRow = el(`<div class="hand"></div>`);
-    for (const card of human.hand) {
+    const mid = (human.hand.length - 1) / 2;
+    human.hand.forEach((card, i) => {
         const check = canPlayCard(state, HUMAN, card.instanceId);
-        handRow.appendChild(miniCard(card, check.ok && isHumanTurn, check.reason, () => handlers.onPlayCard(card.instanceId)));
-    }
-    board.appendChild(handRow);
+        const node = miniCard(card, check.ok && isHumanTurn, check.reason, () => handlers.onPlayCard(card.instanceId));
+        const offset = i - mid;
+        // 회전 대신 위아래 단차만 줘서 "쥐고 있는" 부채꼴 느낌을 낸다 — 카드가
+        // 회전된 상태로 있으면 자식으로 딸린 설명창(.info-pop)도 함께 기울고
+        // 위치가 틀어지는 CSS transform 상속 문제가 있어 회전은 쓰지 않는다.
+        node.style.setProperty("--ty", `${Math.abs(offset) * 6}px`);
+        handRow.appendChild(node);
+    });
+    boardMain.appendChild(handRow);
     // 사이드 패널 (자원 시스템 없음 — 메인 발동 횟수만 표시)
     side.appendChild(el(`
       <div class="panel">
@@ -355,16 +460,6 @@ export function renderBattleScreen(state, handlers) {
         ${isHumanMainTurn && human.activeBattler
         ? `<button class="action" id="skill-btn" style="margin-top:10px">스킬 사용: ${getSongDef(human.activeBattler.defId).nameKo}</button>`
         : ""}
-      </div>
-    `));
-    side.appendChild(el(`
-      <div class="panel">
-        <h3>지속 효과 / 덱</h3>
-        <div class="log">
-          <b>나의 효과</b> ${fieldSummary(state, HUMAN)}<br>
-          <b>상대 효과</b> ${fieldSummary(state, AI)}<br>
-          덱 ${human.deck.length} · 손패 ${human.hand.length} · 무덤 ${human.graveyard.length}
-        </div>
       </div>
     `));
     const logLines = state.log
@@ -391,6 +486,9 @@ export function renderBattleScreen(state, handlers) {
     }
     if (state.revealedHand && state.revealedHand.ownerIndex === AI) {
         content.appendChild(revealModal(state, handlers));
+    }
+    if (showStageIntro && stageId) {
+        content.appendChild(stageIntroOverlay(stageId));
     }
     const root = shell("battle", "대전", content, handlers.onNav);
     root.querySelector("#skill-btn")?.addEventListener("click", handlers.onUseSkill);

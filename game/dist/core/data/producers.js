@@ -14,6 +14,7 @@ export const PRODUCERS = [
         nameOriginal: "DECO*27",
         accent: "#d1445a",
         twitterHandle: "DECO27",
+        bio: "2008년경부터 하츠네 미쿠로 활동해 온 보카로P. 대표곡으로 「고스트 룰」「모자이크 롤」「히바나」「모니터링」「텔레파시」등이 있으며, 감정을 직설적으로 던지는 가사가 특징이다.",
     },
     {
         id: "hachi",
@@ -21,6 +22,7 @@ export const PRODUCERS = [
         nameOriginal: "ハチ",
         accent: "#6f8fae",
         twitterHandle: "hachi_08",
+        bio: "2009년 「마트료시카」로 이름을 알린 보카로P. 「모래의 행성」「도넛 홀」등을 발표한 뒤, 이후 본명 요네즈 켄시(米津玄師)로 활동 영역을 넓혔다.",
     },
     {
         id: "wowaka",
@@ -28,6 +30,7 @@ export const PRODUCERS = [
         nameOriginal: "wowaka",
         accent: "#8890a0",
         twitterHandle: "wowaka",
+        bio: "2009~2010년대 초 「표리 러버즈」「롤링 걸」「월즈 엔드 댄스홀」등으로 초기 보카로 록 신을 대표했던 프로듀서. 밴드 히토리에(ヒトリエ)로도 활동했다.",
     },
     {
         id: "iyowa",
@@ -35,14 +38,23 @@ export const PRODUCERS = [
         nameOriginal: "いよわ",
         accent: "#c9714a",
         twitterHandle: "igusuri_please",
+        bio: "2020년대에 활발히 활동 중인 신진 보카로P. 「큐우쿠라린」「열이상」「황금수」등 몽환적이고 상념 가득한 곡들을 선보인다.",
     },
-    { id: "tak", nameKo: "Tak", nameOriginal: "TAK", accent: "#5cb3d9", twitterHandle: "TAK_DRDR" },
+    {
+        id: "tak",
+        nameKo: "Tak",
+        nameOriginal: "TAK",
+        accent: "#5cb3d9",
+        twitterHandle: "TAK_DRDR",
+        bio: "2024년 데뷔한 신인 보카로P. 「LEMON MELON COOKIE」「PPPP」등 K-POP 감각의 하이텐션 곡으로 빠르게 주목받고 있다.",
+    },
     {
         id: "mang50",
         nameKo: "50mang",
         nameOriginal: "50mang(쏘망)",
         accent: "#8a6fae",
         twitterHandle: "50mang_",
+        bio: "한국 자작곡·보카로 씬에서 활동하는 프로듀서. 「장산범」「살리에리」「윤회」등 한국 설화·정서를 담은 곡을 다수 발표했다.",
     },
 ];
 // 무대 카드는 없지만("게스트") 신화입성곡/유튜브 1억뷰곡을 곡 카드로 등록하기 위해
