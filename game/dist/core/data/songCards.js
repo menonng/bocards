@@ -303,7 +303,7 @@ export const SONG_CARDS = [
         rarity: "common",
         isMyth: false,
         effect: { kind: "draw", amount: 1 },
-        flavor: "검은 별이 그들을 보고 있어.",
+        flavor: "열에 들뜬 머릿속으로, 생각들이 빠르게 스쳐 지나간다.",
     },
     {
         id: "iyowa-shuumatsu-no-otenki",
@@ -443,7 +443,7 @@ export const SONG_CARDS = [
         rarity: "common",
         isMyth: false,
         effect: { kind: "damage", amount: 3 },
-        flavor: "그리스 신화 속 마녀의 이야기를 한국적 정서로 풀어낸 한 곡.",
+        flavor: "배신에 대한 복수는, 자신마저 태워버릴 걸 알면서도 멈추지 않는다.",
     },
     {
         id: "ika-mikumiku",
@@ -654,7 +654,7 @@ export const SONG_CARDS = [
         isMyth: true,
         mythDate: "2024-12-23",
         effect: { kind: "damage", amount: 4 },
-        flavor: "홀로 남겨진 자의 절규는, 손에 쥔 게 적을수록 더 날카롭게 터진다.",
+        flavor: "홀로 남겨진 자의 절규가, 있는 힘껏 한데 응축되어 터져 나온다.",
     },
     {
         id: "satsuki-mesmerizer",
@@ -806,7 +806,7 @@ export const SONG_CARDS = [
         rarity: "rare",
         isMyth: false,
         effect: { kind: "debuffOpponentNextVocal", amount: 4 },
-        flavor: "눈을 내리깔고, 그만큼 낮아진 채로 나아간다.",
+        flavor: "스스로를 한없이 낮춘 자세가, 오히려 상대의 다음 일격을 무디게 만든다.",
     },
     {
         id: "hiiragimagnetite-zako",
