@@ -292,23 +292,26 @@ function emptyBattlerSlot(label: string): HTMLElement {
   return el(`<div class="battler-slot empty-slot">${label}</div>`);
 }
 
-/** 한 플레이어의 필드를 배틀(1) → 벤치(BENCH_SIZE) → 마법/함정(SPELL_TRAP_ZONE_SIZE)
- *  순서로 한 줄에 그린다. */
+/** 한 플레이어의 필드를 배틀(1)이 정중앙에 오도록, 그 좌우로 벤치
+ *  (BENCH_SIZE) → 바깥쪽에 마법/함정(SPELL_TRAP_ZONE_SIZE) 순서로 대칭
+ *  배치한다. mirrored(상대 진영)면 좌/우에 배정되는 그룹이 반대로 뒤집혀서,
+ *  마주 보고 앉은 것처럼 내 진영과 상하좌우가 반전된 모습이 된다. */
 function fieldRow(
   state: GameState,
   index: 0 | 1,
   canSwitch: boolean,
   handlers: AppHandlers,
+  mirrored: boolean,
 ): HTMLElement {
   const p = state.players[index];
   const wrap = el(`<div class="field-row"></div>`);
 
   const activeWrap = el(`<div class="battler-slot active-slot"></div>`);
   activeWrap.appendChild(p.activeBattler ? battlerTile(p.activeBattler) : emptyBattlerSlot("배틀"));
-  wrap.appendChild(activeWrap);
 
+  const benchEls: HTMLElement[] = [];
   for (const b of p.benchBattlers) {
-    wrap.appendChild(
+    benchEls.push(
       battlerTile(b, {
         clickable: canSwitch,
         onClick: canSwitch ? () => handlers.onSwitchActive(b.instanceId) : undefined,
@@ -316,15 +319,33 @@ function fieldRow(
     );
   }
   for (let i = p.benchBattlers.length; i < BENCH_SIZE; i++) {
-    wrap.appendChild(emptyBattlerSlot("벤치"));
+    benchEls.push(emptyBattlerSlot("벤치"));
   }
 
+  const spellEls: HTMLElement[] = [];
   for (const story of p.fieldStories) {
-    wrap.appendChild(spellTrapTile(story.defId, story.remainingTurns));
+    spellEls.push(spellTrapTile(story.defId, story.remainingTurns));
   }
   for (let i = p.fieldStories.length; i < SPELL_TRAP_ZONE_SIZE; i++) {
-    wrap.appendChild(emptyBattlerSlot("마법/함정"));
+    spellEls.push(emptyBattlerSlot("마법/함정"));
   }
+
+  const benchLeftCount = mirrored ? Math.ceil(BENCH_SIZE / 2) : Math.floor(BENCH_SIZE / 2);
+  const spellLeftCount = mirrored
+    ? Math.ceil(SPELL_TRAP_ZONE_SIZE / 2)
+    : Math.floor(SPELL_TRAP_ZONE_SIZE / 2);
+
+  const benchLeft = benchEls.slice(0, benchLeftCount);
+  const benchRight = benchEls.slice(benchLeftCount);
+  const spellLeft = spellEls.slice(0, spellLeftCount);
+  const spellRight = spellEls.slice(spellLeftCount);
+
+  // 바깥(마법/함정) → 안(벤치) → 정중앙(배틀) → 안(벤치) → 바깥(마법/함정)
+  for (const node of spellLeft) wrap.appendChild(node);
+  for (const node of benchLeft) wrap.appendChild(node);
+  wrap.appendChild(activeWrap);
+  for (const node of benchRight) wrap.appendChild(node);
+  for (const node of spellRight) wrap.appendChild(node);
 
   return wrap;
 }
@@ -527,20 +548,30 @@ export function renderCardsScreen(onNav: (s: Screen) => void): HTMLElement {
 
 // ── 대전 화면 ────────────────────────────────────────────────
 
-/** 필드(배틀→벤치→마법/함정) 한 줄 + 옆의 덱/무덤 카드 뭉치(세로 배치)를 함께 그린다. */
+/** 필드(마법함정→벤치→배틀→벤치→마법함정, 배틀이 정중앙) 한 줄 + 옆의
+ *  덱/무덤 카드 뭉치(세로 배치)를 함께 그린다. mirrored(상대 진영)면 덱/무덤
+ *  뭉치가 반대편(왼쪽)에 오고 필드 내부 좌우 그룹도 뒤집혀서, 내 진영과
+ *  마주 보는 상하좌우 반전 배치가 된다. */
 function zoneRow(
   state: GameState,
   index: 0 | 1,
   canSwitch: boolean,
   handlers: AppHandlers,
+  mirrored: boolean,
 ): HTMLElement {
   const p = state.players[index];
   const row = el(`<div class="zone-row"></div>`);
-  row.appendChild(fieldRow(state, index, canSwitch, handlers));
   const stacks = el(`<div class="stack-pair"></div>`);
   stacks.appendChild(cardStack(p.deck.length, "덱"));
   stacks.appendChild(cardStack(p.graveyard.length, "무덤"));
-  row.appendChild(stacks);
+  const field = fieldRow(state, index, canSwitch, handlers, mirrored);
+  if (mirrored) {
+    row.appendChild(stacks);
+    row.appendChild(field);
+  } else {
+    row.appendChild(field);
+    row.appendChild(stacks);
+  }
   return row;
 }
 
@@ -580,8 +611,8 @@ export function renderBattleScreen(
       `<div class="side-stat"><span>OPPONENT / ${state.players[AI].name}</span><span class="hp">♥ ${state.players[AI].popularity}</span></div>`,
     ),
   );
-  boardMain.appendChild(zoneRow(state, AI, false, handlers));
-  boardMain.appendChild(zoneRow(state, HUMAN, canSwitch, handlers));
+  boardMain.appendChild(zoneRow(state, AI, false, handlers, true));
+  boardMain.appendChild(zoneRow(state, HUMAN, canSwitch, handlers, false));
   boardMain.appendChild(
     el(
       `<div class="side-stat"><span>YOU / ${human.name}</span><span class="hp">♥ ${human.popularity}</span></div>`,

@@ -124,7 +124,7 @@ main{padding:26px 32px 40px;overflow-x:hidden}
 
 /* ── 필드: 배틀(1) → 벤치(BENCH_SIZE) → 마법/함정(SPELL_TRAP_ZONE_SIZE) 한 줄 ── */
 .zone-row{display:flex;align-items:center;justify-content:space-between;gap:16px}
-.field-row{display:flex;align-items:center;gap:8px;flex:1;min-width:0;flex-wrap:wrap;padding:2px}
+.field-row{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-width:0;flex-wrap:wrap;padding:2px}
 .active-slot{position:relative}
 .active-slot .mini-card,.active-slot .empty-slot{
   box-shadow:0 0 0 2px color-mix(in srgb,var(--card-accent,var(--gold)) 70%,transparent);
