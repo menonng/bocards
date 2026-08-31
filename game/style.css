@@ -122,9 +122,17 @@ main{padding:26px 32px 40px;overflow-x:hidden}
   display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;
 }
 
-/* ── 필드: 배틀(1) → 벤치(BENCH_SIZE) → 마법/함정(SPELL_TRAP_ZONE_SIZE) 한 줄 ── */
-.zone-row{display:flex;align-items:center;justify-content:space-between;gap:16px}
-.field-row{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-width:0;flex-wrap:wrap;padding:2px}
+/* ── 필드: 유희왕처럼 벤치 줄 / 마법&함정 줄을 분리하고, 배틀은 두 진영의
+   벤치 줄 사이 보드 정중앙에 독립된 한 줄(엑스트라 몬스터 존 자리)로 둔다.
+   위(상대)→아래(나) 순서로 바깥(마법/함정) → 안(벤치) → 정중앙(배틀). ── */
+.zone-line{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.mini-row{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-width:0;flex-wrap:wrap;padding:2px}
+.battle-center-row{
+  display:flex;align-items:center;justify-content:center;gap:18px;
+  padding:8px 0;margin:2px 0;
+  border-top:1px dashed #2d3138;border-bottom:1px dashed #2d3138;
+}
+.vs-divider{font-size:11px;font-weight:800;letter-spacing:.1em;color:#585d66}
 .active-slot{position:relative}
 .active-slot .mini-card,.active-slot .empty-slot{
   box-shadow:0 0 0 2px color-mix(in srgb,var(--card-accent,var(--gold)) 70%,transparent);
@@ -140,9 +148,8 @@ main{padding:26px 32px 40px;overflow-x:hidden}
 .spelltrap-tile{border-color:color-mix(in srgb,var(--gold) 45%,#3a3e46)}
 .spelltrap-turns{font-size:9px;color:var(--gold);padding:0 7px 6px;font-weight:700}
 
-/* ── 덱/무덤 카드 뭉치 (세로 배치, 확대) ── */
-.stack-pair{display:flex;flex-direction:column;gap:12px;flex:0 0 auto}
-.card-stack{width:72px;text-align:center}
+/* ── 덱/무덤 카드 뭉치 (각 줄 옆에 하나씩, 확대) ── */
+.card-stack{width:72px;text-align:center;flex:0 0 auto}
 .stack-layers{position:relative;width:72px;height:100px}
 .stack-layer{
   position:absolute;inset:0;border-radius:8px;

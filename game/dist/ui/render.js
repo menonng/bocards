@@ -234,51 +234,67 @@ function battlerTile(battler, opts = {}) {
 function emptyBattlerSlot(label) {
     return el(`<div class="battler-slot empty-slot">${label}</div>`);
 }
-/** 한 플레이어의 필드를 배틀(1)이 정중앙에 오도록, 그 좌우로 벤치
- *  (BENCH_SIZE) → 바깥쪽에 마법/함정(SPELL_TRAP_ZONE_SIZE) 순서로 대칭
- *  배치한다. mirrored(상대 진영)면 좌/우에 배정되는 그룹이 반대로 뒤집혀서,
- *  마주 보고 앉은 것처럼 내 진영과 상하좌우가 반전된 모습이 된다. */
-function fieldRow(state, index, canSwitch, handlers, mirrored) {
+// 유희왕 필드(메인 몬스터 존 / 마법&함정 존 / 엑스트라 몬스터 존)를 참고한
+// 구조: 배틀은 한 플레이어의 줄 안이 아니라, 두 진영의 벤치 줄 사이 — 즉
+// 보드 정중앙에 독립된 한 줄로 존재한다(엑스트라 몬스터 존처럼 두 진영이
+// 마주 보고 부딪히는 자리). 각 플레이어 쪽에서 보면 자기 진영 끝에서
+// 중앙으로 갈수록 "마법/함정(바깥) → 벤치(안쪽) → 배틀(정중앙, 상대와 마주함)"
+// 순서로, 이는 세 개의 별도 가로줄로 구현한다(하나의 줄에 다 몰아넣지 않음).
+/** 벤치(BENCH_SIZE) 줄만 그린다. */
+function benchTilesRow(state, index, canSwitch, handlers) {
     const p = state.players[index];
-    const wrap = el(`<div class="field-row"></div>`);
-    const activeWrap = el(`<div class="battler-slot active-slot"></div>`);
-    activeWrap.appendChild(p.activeBattler ? battlerTile(p.activeBattler) : emptyBattlerSlot("배틀"));
-    const benchEls = [];
+    const row = el(`<div class="mini-row"></div>`);
     for (const b of p.benchBattlers) {
-        benchEls.push(battlerTile(b, {
+        row.appendChild(battlerTile(b, {
             clickable: canSwitch,
             onClick: canSwitch ? () => handlers.onSwitchActive(b.instanceId) : undefined,
         }));
     }
     for (let i = p.benchBattlers.length; i < BENCH_SIZE; i++) {
-        benchEls.push(emptyBattlerSlot("벤치"));
+        row.appendChild(emptyBattlerSlot("벤치"));
     }
-    const spellEls = [];
+    return row;
+}
+/** 마법/함정(SPELL_TRAP_ZONE_SIZE) 줄만 그린다. */
+function spellTrapTilesRow(state, index) {
+    const p = state.players[index];
+    const row = el(`<div class="mini-row"></div>`);
     for (const story of p.fieldStories) {
-        spellEls.push(spellTrapTile(story.defId, story.remainingTurns));
+        row.appendChild(spellTrapTile(story.defId, story.remainingTurns));
     }
     for (let i = p.fieldStories.length; i < SPELL_TRAP_ZONE_SIZE; i++) {
-        spellEls.push(emptyBattlerSlot("마법/함정"));
+        row.appendChild(emptyBattlerSlot("마법/함정"));
     }
-    const benchLeftCount = mirrored ? Math.ceil(BENCH_SIZE / 2) : Math.floor(BENCH_SIZE / 2);
-    const spellLeftCount = mirrored
-        ? Math.ceil(SPELL_TRAP_ZONE_SIZE / 2)
-        : Math.floor(SPELL_TRAP_ZONE_SIZE / 2);
-    const benchLeft = benchEls.slice(0, benchLeftCount);
-    const benchRight = benchEls.slice(benchLeftCount);
-    const spellLeft = spellEls.slice(0, spellLeftCount);
-    const spellRight = spellEls.slice(spellLeftCount);
-    // 바깥(마법/함정) → 안(벤치) → 정중앙(배틀) → 안(벤치) → 바깥(마법/함정)
-    for (const node of spellLeft)
-        wrap.appendChild(node);
-    for (const node of benchLeft)
-        wrap.appendChild(node);
-    wrap.appendChild(activeWrap);
-    for (const node of benchRight)
-        wrap.appendChild(node);
-    for (const node of spellRight)
-        wrap.appendChild(node);
+    return row;
+}
+/** 보드 정중앙의 배틀 존. 양 진영의 배틀 카드가 서로 마주 보도록 한 줄에
+ *  나란히 그린다(엑스트라 몬스터 존처럼 두 벤치 줄 사이의 공용 경계). */
+function battleCenterRow(state) {
+    const ai = state.players[AI];
+    const human = state.players[HUMAN];
+    const aiWrap = el(`<div class="battler-slot active-slot"></div>`);
+    aiWrap.appendChild(ai.activeBattler ? battlerTile(ai.activeBattler) : emptyBattlerSlot("배틀"));
+    const humanWrap = el(`<div class="battler-slot active-slot"></div>`);
+    humanWrap.appendChild(human.activeBattler ? battlerTile(human.activeBattler) : emptyBattlerSlot("배틀"));
+    const wrap = el(`<div class="battle-center-row"></div>`);
+    wrap.appendChild(aiWrap);
+    wrap.appendChild(el(`<div class="vs-divider">VS</div>`));
+    wrap.appendChild(humanWrap);
     return wrap;
+}
+/** 벤치/마법함정 한 줄 옆에 덱 또는 무덤 카드 뭉치를 붙인다. mirrored(상대
+ *  진영)면 뭉치가 반대편(왼쪽)에 와서, 내 진영과 좌우가 뒤집힌 모습이 된다. */
+function sideStackLine(rowEl, stackEl, mirrored) {
+    const line = el(`<div class="zone-line"></div>`);
+    if (mirrored) {
+        line.appendChild(stackEl);
+        line.appendChild(rowEl);
+    }
+    else {
+        line.appendChild(rowEl);
+        line.appendChild(stackEl);
+    }
+    return line;
 }
 /** 덱/무덤을 "쌓인 카드 뭉치"로 시각화한다(실제 장수만큼 렌더링하지 않고,
  *  최대 4겹의 오프셋 레이어 + 실제 장수 뱃지로 표현). */
@@ -455,27 +471,6 @@ export function renderCardsScreen(onNav) {
     return shell("cards", "카드 목록", content, onNav);
 }
 // ── 대전 화면 ────────────────────────────────────────────────
-/** 필드(마법함정→벤치→배틀→벤치→마법함정, 배틀이 정중앙) 한 줄 + 옆의
- *  덱/무덤 카드 뭉치(세로 배치)를 함께 그린다. mirrored(상대 진영)면 덱/무덤
- *  뭉치가 반대편(왼쪽)에 오고 필드 내부 좌우 그룹도 뒤집혀서, 내 진영과
- *  마주 보는 상하좌우 반전 배치가 된다. */
-function zoneRow(state, index, canSwitch, handlers, mirrored) {
-    const p = state.players[index];
-    const row = el(`<div class="zone-row"></div>`);
-    const stacks = el(`<div class="stack-pair"></div>`);
-    stacks.appendChild(cardStack(p.deck.length, "덱"));
-    stacks.appendChild(cardStack(p.graveyard.length, "무덤"));
-    const field = fieldRow(state, index, canSwitch, handlers, mirrored);
-    if (mirrored) {
-        row.appendChild(stacks);
-        row.appendChild(field);
-    }
-    else {
-        row.appendChild(field);
-        row.appendChild(stacks);
-    }
-    return row;
-}
 export function renderBattleScreen(state, handlers, showStageIntro, animateStageBadgeArrival = false) {
     const content = el(`<div class="battle"></div>`);
     const board = el(`<div class="board"></div>`);
@@ -497,8 +492,14 @@ export function renderBattleScreen(state, handlers, showStageIntro, animateStage
         boardLeft.appendChild(stageBadge(stageId, animateStageBadgeArrival));
     boardLeft.appendChild(el(`<div class="turn">${state.phase === "gameover" ? "게임 종료" : isReaction ? (isHumanTurn ? "당신의 반응 구간" : "상대의 반응 구간") : state.activePlayerIndex === HUMAN ? "당신의 턴" : "상대의 턴"} · 턴 ${state.turnNumber}</div>`));
     boardMain.appendChild(el(`<div class="side-stat"><span>OPPONENT / ${state.players[AI].name}</span><span class="hp">♥ ${state.players[AI].popularity}</span></div>`));
-    boardMain.appendChild(zoneRow(state, AI, false, handlers, true));
-    boardMain.appendChild(zoneRow(state, HUMAN, canSwitch, handlers, false));
+    // 위(상대)→아래(나) 순서로, 각 진영은 바깥(마법/함정)→안(벤치)으로 중앙을
+    // 향해 좁혀지고, 정중앙에서 두 배틀 카드가 마주친다. 상대 쪽은 덱/무덤
+    // 뭉치가 반대편(왼쪽)에 와서 내 진영과 좌우가 뒤집힌 모습이 된다.
+    boardMain.appendChild(sideStackLine(spellTrapTilesRow(state, AI), cardStack(state.players[AI].deck.length, "덱"), true));
+    boardMain.appendChild(sideStackLine(benchTilesRow(state, AI, false, handlers), cardStack(state.players[AI].graveyard.length, "무덤"), true));
+    boardMain.appendChild(battleCenterRow(state));
+    boardMain.appendChild(sideStackLine(benchTilesRow(state, HUMAN, canSwitch, handlers), cardStack(human.graveyard.length, "무덤"), false));
+    boardMain.appendChild(sideStackLine(spellTrapTilesRow(state, HUMAN), cardStack(human.deck.length, "덱"), false));
     boardMain.appendChild(el(`<div class="side-stat"><span>YOU / ${human.name}</span><span class="hp">♥ ${human.popularity}</span></div>`));
     const handRow = el(`<div class="hand"></div>`);
     const mid = (human.hand.length - 1) / 2;
